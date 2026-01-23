@@ -1,0 +1,13 @@
+[
+    {
+        "type": "config",
+        "config": {
+            "name": "test",
+            "level": "8"
+        }
+    },
+    {
+        "type": "path",
+        "path": "src/"
+    }
+]
