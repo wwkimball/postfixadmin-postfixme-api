@@ -26,6 +26,9 @@ $app->use(new CorsMiddleware());
 $app->use(new JsonMiddleware());
 $app->use(new TlsMiddleware());
 
+// Health check endpoint (no auth required)
+$router->get('/api/v1/health', [AuthController::class, 'health']);
+
 // Public routes (no auth required)
 $router->post('/api/v1/auth/login', [AuthController::class, 'login']);
 

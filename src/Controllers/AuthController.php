@@ -112,4 +112,12 @@ class AuthController extends BaseController
             'expires_in' => $this->config['jwt']['access_token_ttl'],
         ]);
     }
+
+    public function health(): void
+    {
+        $this->success([
+            'status' => 'ok',
+            'timestamp' => time(),
+        ]);
+    }
 }
