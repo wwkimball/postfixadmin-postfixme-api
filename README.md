@@ -25,12 +25,14 @@ The PostfixMe API provides a secure JSON REST interface that allows mobile appli
 ## Installation
 
 1. Install dependencies:
+
    ```bash
    cd /path/to/pfme/api
    composer install --no-dev --optimize-autoloader
    ```
 
 2. Generate JWT keys:
+
    ```bash
    # Generate private key
    openssl genrsa -out pfme_jwt_private.pem 2048
@@ -40,6 +42,7 @@ The PostfixMe API provides a secure JSON REST interface that allows mobile appli
    ```
 
 3. Place keys in Docker secrets:
+
    ```bash
    cp pfme_jwt_private.pem docker/secrets/pfme_jwt_private_key
    cp pfme_jwt_public.pem docker/secrets/pfme_jwt_public_key
@@ -52,7 +55,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 ### Required Environment Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| -------- | ------- | ----------- |
 | `POSTFIXADMIN_DB_HOST` | `db` | Database hostname |
 | `POSTFIXADMIN_DB_PORT` | `3306` | Database port |
 | `POSTFIXADMIN_DB_NAME` | `postfixadmin` | Database name |
@@ -62,7 +65,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 ### JWT Configuration
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| -------- | ------- | ----------- |
 | `PFME_JWT_PRIVATE_KEY_FILE` | `/run/secrets/pfme_jwt_private_key` | RS256 private key file |
 | `PFME_JWT_PUBLIC_KEY_FILE` | `/run/secrets/pfme_jwt_public_key` | RS256 public key file |
 | `PFME_ACCESS_TOKEN_TTL` | `900` | Access token lifetime (seconds, default 15 min) |
@@ -73,7 +76,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 ### Security Configuration
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| -------- | ------- | ----------- |
 | `TRUSTED_PROXY_CIDR` | `` | Comma-separated CIDR blocks for trusted proxies |
 | `TRUSTED_TLS_HEADER_NAME` | `X-Forwarded-Proto` | TLS proxy header name |
 | `PFME_REQUIRE_TLS` | `true` | Enforce TLS connections |
@@ -85,7 +88,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 ### Optional Configuration
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| -------- | ------- | ----------- |
 | `APP_ENV` | `production` | Application environment (development/production) |
 
 ## API Endpoints
@@ -93,9 +96,11 @@ The API uses environment variables for configuration. All secrets follow the `*_
 ### Authentication
 
 #### POST /api/v1/auth/login
+
 Authenticate with mailbox credentials.
 
 **Request:**
+
 ```json
 {
   "mailbox": "user@example.com",
@@ -105,6 +110,7 @@ Authenticate with mailbox credentials.
 ```
 
 **Response (200):**
+
 ```json
 {
   "access_token": "eyJ...",
@@ -119,11 +125,13 @@ Authenticate with mailbox credentials.
 ```
 
 #### POST /api/v1/auth/logout
+
 Revoke current access token (requires authentication).
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Response (200):**
+
 ```json
 {
   "message": "Logged out successfully"
@@ -131,11 +139,13 @@ Revoke current access token (requires authentication).
 ```
 
 #### POST /api/v1/auth/refresh
+
 Rotate tokens using refresh token (requires authentication).
 
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "refresh_token": "abc123..."
@@ -143,6 +153,7 @@ Rotate tokens using refresh token (requires authentication).
 ```
 
 **Response (200):**
+
 ```json
 {
   "access_token": "eyJ...",
@@ -157,9 +168,11 @@ Rotate tokens using refresh token (requires authentication).
 All alias endpoints require authentication via `Authorization: Bearer <token>` header.
 
 #### GET /api/v1/aliases
+
 List aliases forwarding to authenticated user's mailbox.
 
 **Query Parameters:**
+
 - `q` - Search by local-part (optional)
 - `status` - Filter by status: `active`, `inactive` (optional)
 - `page` - Page number (default: 1)
@@ -167,6 +180,7 @@ List aliases forwarding to authenticated user's mailbox.
 - `sort` - Sort by: `address`, `created`, `modified` (default: `address`)
 
 **Response (200):**
+
 ```json
 {
   "data": [
@@ -191,9 +205,11 @@ List aliases forwarding to authenticated user's mailbox.
 ```
 
 #### POST /api/v1/aliases
+
 Create a new alias.
 
 **Request:**
+
 ```json
 {
   "local_part": "newalias",
@@ -202,11 +218,13 @@ Create a new alias.
 ```
 
 **Constraints:**
+
 - Authenticated user's mailbox MUST be in destinations
 - Domain is implied from authenticated user
 - Local part must not already exist
 
 **Response (201):**
+
 ```json
 {
   "id": 2,
@@ -221,9 +239,11 @@ Create a new alias.
 ```
 
 #### PUT /api/v1/aliases/{id}
+
 Update an existing alias.
 
 **Request:**
+
 ```json
 {
   "local_part": "renamed",
@@ -237,13 +257,16 @@ All fields are optional. Provide only fields to update.
 **Response (200):** Same format as create response.
 
 #### DELETE /api/v1/aliases/{id}
+
 Delete an alias.
 
 **Constraints:**
+
 - Alias must be inactive (active: false) before deletion
 - Returns 409 Conflict if still active
 
 **Response (200):**
+
 ```json
 {
   "message": "Alias deleted successfully"
@@ -263,6 +286,7 @@ All errors follow this format:
 ```
 
 Common error codes:
+
 - `invalid_input` - Missing or malformed request data
 - `unauthorized` - Missing or invalid authentication
 - `invalid_credentials` - Login failed
