@@ -120,4 +120,26 @@ class AliasController extends BaseController
             $this->error($e->getMessage(), $statusCode, 'deletion_failed');
         }
     }
+
+    public function destinations(): void
+    {
+        $user = $this->getAuthenticatedUser();
+        $params = $this->getQueryParams();
+
+        try {
+            $mailboxes = $this->aliasService->getAvailableMailboxes(
+                $user['domain'],
+                $params['q'] ?? null
+            );
+
+            // Extract just the email addresses
+            $destinations = array_map(function ($mailbox) {
+                return $mailbox['email'];
+            }, $mailboxes);
+
+            $this->success(['destinations' => $destinations]);
+        } catch (\Exception $e) {
+            $this->error($e->getMessage(), 400, 'destinations_failed');
+        }
+    }
 }

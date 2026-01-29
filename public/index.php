@@ -37,6 +37,7 @@ $router->post('/api/v1/auth/logout', [AuthController::class, 'logout'], [new Aut
 $router->post('/api/v1/auth/refresh', [AuthController::class, 'refresh'], [new AuthMiddleware()]);
 
 $router->get('/api/v1/aliases', [AliasController::class, 'list'], [new AuthMiddleware()]);
+$router->get('/api/v1/destinations', [AliasController::class, 'destinations'], [new AuthMiddleware()]);
 $router->post('/api/v1/aliases', [AliasController::class, 'create'], [new AuthMiddleware()]);
 $router->put('/api/v1/aliases/{id}', [AliasController::class, 'update'], [new AuthMiddleware()]);
 $router->delete('/api/v1/aliases/{id}', [AliasController::class, 'delete'], [new AuthMiddleware()]);
