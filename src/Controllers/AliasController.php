@@ -91,7 +91,7 @@ class AliasController extends BaseController
                 $updates['active'] = (bool)$input['active'];
             }
 
-            $alias = $this->aliasService->updateAlias((int)$id, $user['mailbox'], $updates);
+            $alias = $this->aliasService->updateAlias($id, $user['mailbox'], $updates);
 
             if (!$alias) {
                 $this->error('Alias not found or access denied', 404, 'not_found');
@@ -108,7 +108,7 @@ class AliasController extends BaseController
         $user = $this->getAuthenticatedUser();
 
         try {
-            $result = $this->aliasService->deleteAlias((int)$id, $user['mailbox']);
+            $result = $this->aliasService->deleteAlias($id, $user['mailbox']);
 
             if (!$result) {
                 $this->error('Alias not found or access denied', 404, 'not_found');

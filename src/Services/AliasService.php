@@ -63,11 +63,11 @@ class AliasService
         ];
     }
 
-    public function getAliasById(int $id, string $mailbox): ?array
+    public function getAliasById(string $address, string $mailbox): ?array
     {
         $db = Database::getConnection();
-        $stmt = $db->prepare('SELECT * FROM alias WHERE id = ? AND goto LIKE ?');
-        $stmt->execute([$id, "%{$mailbox}%"]);
+        $stmt = $db->prepare('SELECT * FROM alias WHERE address = ? AND goto LIKE ?');
+        $stmt->execute([$address, "%{$mailbox}%"]);
 
         $alias = $stmt->fetch();
 
@@ -89,7 +89,7 @@ class AliasService
 
         // Check if alias already exists
         $db = Database::getConnection();
-        $stmt = $db->prepare('SELECT id FROM alias WHERE address = ?');
+        $stmt = $db->prepare('SELECT 1 FROM alias WHERE address = ?');
         $stmt->execute([$address]);
 
         if ($stmt->fetch()) {
@@ -107,14 +107,13 @@ class AliasService
         );
 
         $stmt->execute([$address, $goto, $domain]);
-        $id = $db->lastInsertId();
 
-        return $this->getAliasById($id, $mailbox);
+        return $this->getAliasById($address, $mailbox);
     }
 
-    public function updateAlias(int $id, string $mailbox, array $updates): ?array
+    public function updateAlias(string $address, string $mailbox, array $updates): ?array
     {
-        $alias = $this->getAliasById($id, $mailbox);
+        $alias = $this->getAliasById($address, $mailbox);
 
         if (!$alias) {
             return null;
@@ -124,13 +123,15 @@ class AliasService
         $setParts = [];
         $params = [];
 
+        $targetAddress = $address;
+
         // Handle local_part rename
         if (isset($updates['local_part'])) {
             $newAddress = $updates['local_part'] . '@' . $alias['domain'];
 
             // Check if new address already exists
-            $stmt = $db->prepare('SELECT id FROM alias WHERE address = ? AND id != ?');
-            $stmt->execute([$newAddress, $id]);
+            $stmt = $db->prepare('SELECT 1 FROM alias WHERE address = ? AND address != ?');
+            $stmt->execute([$newAddress, $address]);
 
             if ($stmt->fetch()) {
                 throw new \Exception('An alias with that name already exists');
@@ -138,6 +139,7 @@ class AliasService
 
             $setParts[] = 'address = ?';
             $params[] = $newAddress;
+            $targetAddress = $newAddress;
         }
 
         // Handle destinations update
@@ -164,18 +166,18 @@ class AliasService
 
         $setParts[] = 'modified = NOW()';
 
-        $sql = 'UPDATE alias SET ' . implode(', ', $setParts) . ' WHERE id = ?';
-        $params[] = $id;
+        $sql = 'UPDATE alias SET ' . implode(', ', $setParts) . ' WHERE address = ?';
+        $params[] = $address;
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
 
-        return $this->getAliasById($id, $mailbox);
+        return $this->getAliasById($targetAddress, $mailbox);
     }
 
-    public function deleteAlias(int $id, string $mailbox): bool
+    public function deleteAlias(string $address, string $mailbox): bool
     {
-        $alias = $this->getAliasById($id, $mailbox);
+        $alias = $this->getAliasById($address, $mailbox);
 
         if (!$alias) {
             return false;
@@ -187,8 +189,8 @@ class AliasService
         }
 
         $db = Database::getConnection();
-        $stmt = $db->prepare('DELETE FROM alias WHERE id = ?');
-        $stmt->execute([$id]);
+        $stmt = $db->prepare('DELETE FROM alias WHERE address = ?');
+        $stmt->execute([$address]);
 
         return true;
     }
@@ -200,7 +202,7 @@ class AliasService
         $destinations = array_filter(array_map('trim', explode(',', $alias['goto'])));
 
         return [
-            'id' => (int)$alias['id'],
+            'id' => $alias['address'],  // Use address as unique identifier
             'local_part' => $localPart,
             'domain' => $domain,
             'address' => $alias['address'],
