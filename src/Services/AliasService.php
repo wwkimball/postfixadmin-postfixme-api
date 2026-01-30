@@ -85,6 +85,8 @@ class AliasService
             throw new \Exception('Your mailbox must be included in alias destinations');
         }
 
+        // Normalize local_part to lowercase for consistency with email standards
+        $localPart = strtolower($localPart);
         $address = $localPart . '@' . $domain;
 
         // Check if alias already exists
@@ -127,7 +129,9 @@ class AliasService
 
         // Handle local_part rename
         if (isset($updates['local_part'])) {
-            $newAddress = $updates['local_part'] . '@' . $alias['domain'];
+            // Normalize local_part to lowercase for consistency with email standards
+            $normalizedLocalPart = strtolower($updates['local_part']);
+            $newAddress = $normalizedLocalPart . '@' . $alias['domain'];
 
             // Check if new address already exists
             $stmt = $db->prepare('SELECT 1 FROM alias WHERE address = ? AND address != ?');
