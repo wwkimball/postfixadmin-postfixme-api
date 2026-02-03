@@ -69,7 +69,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 | `PFME_JWT_PRIVATE_KEY_FILE` | `/run/secrets/pfme_jwt_private_key` | RS256 private key file |
 | `PFME_JWT_PUBLIC_KEY_FILE` | `/run/secrets/pfme_jwt_public_key` | RS256 public key file |
 | `PFME_ACCESS_TOKEN_TTL` | `900` | Access token lifetime (seconds, default 15 min) |
-| `PFME_REFRESH_TOKEN_TTL` | `2592000` | Refresh token lifetime (seconds, default 30 days) |
+| `PFME_REFRESH_TOKEN_TTL` | `157680000` | Refresh token lifetime (seconds, default 5 years) |
 | `PFME_JWT_ISSUER` | `pfme-api` | JWT issuer claim |
 | `PFME_JWT_AUDIENCE` | `pfme-mobile` | JWT audience claim |
 

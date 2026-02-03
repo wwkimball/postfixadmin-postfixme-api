@@ -45,8 +45,8 @@ class TokenService
 
         $db = Database::getConnection();
         $stmt = $db->prepare(
-            'INSERT INTO pfme_refresh_tokens (token, mailbox, device_id, expires_at, created_at)
-             VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO pfme_refresh_tokens (token, mailbox, device_id, expires_at, created_at, last_used_at)
+             VALUES (?, ?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
@@ -54,6 +54,7 @@ class TokenService
             $mailbox,
             $deviceId,
             date('Y-m-d H:i:s', $expiresAt),
+            date('Y-m-d H:i:s'),
             date('Y-m-d H:i:s'),
         ]);
 
@@ -92,7 +93,105 @@ class TokenService
         $stmt->execute([$tokenHash]);
         $result = $stmt->fetch();
 
+        if ($result) {
+            // Update sliding expiration - extend expiry on use
+            $this->extendRefreshTokenExpiry($tokenHash);
+        }
+
         return $result ?: null;
+    }
+
+    public function rotateRefreshToken(string $oldToken, string $mailbox, string $deviceId = null): array
+    {
+        $oldTokenHash = hash('sha256', $oldToken);
+        $db = Database::getConnection();
+
+        // Verify old token is still valid or within grace period
+        $stmt = $db->prepare(
+            'SELECT * FROM pfme_refresh_tokens
+             WHERE token = ? AND revoked_at IS NULL
+             AND (
+                expires_at > NOW()
+                OR expires_at > DATE_SUB(NOW(), INTERVAL ? SECOND)
+             )'
+        );
+
+        $gracePeriod = $this->config['jwt']['refresh_token_grace_period'];
+        $stmt->execute([$oldTokenHash, $gracePeriod]);
+        $oldTokenData = $stmt->fetch();
+
+        if (!$oldTokenData) {
+            throw new \Exception('Invalid or expired refresh token');
+        }
+
+        // Check if this token is part of a family that's been revoked
+        if ($oldTokenData['family_id'] && $this->isTokenFamilyRevoked($oldTokenData['family_id'])) {
+            throw new \Exception('Token family has been revoked - possible token theft detected');
+        }
+
+        // Create new token with same family ID
+        $newToken = bin2hex(random_bytes(32));
+        $newTokenHash = hash('sha256', $newToken);
+        $expiresAt = time() + $this->config['jwt']['refresh_token_ttl'];
+        $familyId = $oldTokenData['family_id'] ?: $oldTokenHash; // Use old token hash as family ID if not set
+
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_refresh_tokens
+             (token, mailbox, device_id, expires_at, created_at, last_used_at, family_id, rotated_from)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+
+        $stmt->execute([
+            $newTokenHash,
+            $mailbox,
+            $deviceId,
+            date('Y-m-d H:i:s', $expiresAt),
+            date('Y-m-d H:i:s'),
+            date('Y-m-d H:i:s'),
+            $familyId,
+            $oldTokenHash,
+        ]);
+
+        // Mark old token as rotated (keep it valid during grace period)
+        $stmt = $db->prepare(
+            'UPDATE pfme_refresh_tokens SET rotated_to = ?, rotated_at = NOW() WHERE token = ?'
+        );
+        $stmt->execute([$newTokenHash, $oldTokenHash]);
+
+        return [
+            'token' => $newToken,
+            'expires_at' => $expiresAt,
+        ];
+    }
+
+    private function extendRefreshTokenExpiry(string $tokenHash): void
+    {
+        $newExpiry = time() + $this->config['jwt']['refresh_token_ttl'];
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'UPDATE pfme_refresh_tokens
+             SET expires_at = ?, last_used_at = NOW()
+             WHERE token = ?'
+        );
+
+        $stmt->execute([
+            date('Y-m-d H:i:s', $newExpiry),
+            $tokenHash,
+        ]);
+    }
+
+    private function isTokenFamilyRevoked(string $familyId): bool
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'SELECT 1 FROM pfme_refresh_tokens
+             WHERE family_id = ? AND revoked_at IS NOT NULL
+             LIMIT 1'
+        );
+        $stmt->execute([$familyId]);
+
+        return $stmt->fetch() !== false;
     }
 
     public function revokeRefreshToken(string $token): void

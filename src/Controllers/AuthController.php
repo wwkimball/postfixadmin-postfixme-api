@@ -85,32 +85,36 @@ class AuthController extends BaseController
             $this->error('refresh_token is required', 400, 'invalid_input');
         }
 
-        // Verify refresh token
-        $tokenData = $this->tokenService->verifyRefreshToken($input['refresh_token']);
+        try {
+            // Verify refresh token
+            $tokenData = $this->tokenService->verifyRefreshToken($input['refresh_token']);
 
-        if (!$tokenData) {
-            $this->error('Invalid or expired refresh token', 401, 'invalid_token');
+            if (!$tokenData) {
+                $this->error('Invalid or expired refresh token', 401, 'invalid_token');
+            }
+
+            // Get domain
+            $domain = $this->authService->getDomainFromMailbox($tokenData['mailbox']);
+
+            // Rotate refresh token (with grace period support)
+            $newRefreshToken = $this->tokenService->rotateRefreshToken(
+                $input['refresh_token'],
+                $tokenData['mailbox'],
+                $tokenData['device_id']
+            );
+
+            // Generate new access token
+            $accessToken = $this->tokenService->createAccessToken($tokenData['mailbox'], $domain);
+
+            $this->success([
+                'access_token' => $accessToken,
+                'refresh_token' => $newRefreshToken['token'],
+                'token_type' => 'Bearer',
+                'expires_in' => $this->config['jwt']['access_token_ttl'],
+            ]);
+        } catch (\Exception $e) {
+            $this->error($e->getMessage(), 401, 'token_refresh_failed');
         }
-
-        // Revoke old refresh token
-        $this->tokenService->revokeRefreshToken($input['refresh_token']);
-
-        // Get domain
-        $domain = $this->authService->getDomainFromMailbox($tokenData['mailbox']);
-
-        // Generate new tokens
-        $accessToken = $this->tokenService->createAccessToken($tokenData['mailbox'], $domain);
-        $newRefreshToken = $this->tokenService->createRefreshToken(
-            $tokenData['mailbox'],
-            $tokenData['device_id']
-        );
-
-        $this->success([
-            'access_token' => $accessToken,
-            'refresh_token' => $newRefreshToken['token'],
-            'token_type' => 'Bearer',
-            'expires_in' => $this->config['jwt']['access_token_ttl'],
-        ]);
     }
 
     public function health(): void

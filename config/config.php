@@ -20,7 +20,8 @@ return [
         'public_key_file' => getenv('PFME_JWT_PUBLIC_KEY_FILE') ?: '/run/secrets/pfme_jwt_public_key',
         'algorithm' => 'RS256',
         'access_token_ttl' => (int)(getenv('PFME_ACCESS_TOKEN_TTL') ?: 900), // 15 minutes
-        'refresh_token_ttl' => (int)(getenv('PFME_REFRESH_TOKEN_TTL') ?: 2592000), // 30 days
+        'refresh_token_ttl' => (int)(getenv('PFME_REFRESH_TOKEN_TTL') ?: 157680000), // 5 years with sliding expiration
+        'refresh_token_grace_period' => (int)(getenv('PFME_REFRESH_TOKEN_GRACE_PERIOD') ?: 604800), // 7 days
         'issuer' => getenv('PFME_JWT_ISSUER') ?: 'pfme-api',
         'audience' => getenv('PFME_JWT_AUDIENCE') ?: 'pfme-mobile',
     ],

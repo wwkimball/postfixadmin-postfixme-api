@@ -31,10 +31,10 @@ $router->get('/api/v1/health', [AuthController::class, 'health']);
 
 // Public routes (no auth required)
 $router->post('/api/v1/auth/login', [AuthController::class, 'login']);
+$router->post('/api/v1/auth/refresh', [AuthController::class, 'refresh']);
 
 // Protected routes (auth required)
 $router->post('/api/v1/auth/logout', [AuthController::class, 'logout'], [new AuthMiddleware()]);
-$router->post('/api/v1/auth/refresh', [AuthController::class, 'refresh'], [new AuthMiddleware()]);
 
 $router->get('/api/v1/aliases', [AliasController::class, 'list'], [new AuthMiddleware()]);
 $router->get('/api/v1/destinations', [AliasController::class, 'destinations'], [new AuthMiddleware()]);
