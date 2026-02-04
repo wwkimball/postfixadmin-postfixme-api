@@ -232,6 +232,7 @@ class AliasService
 
     private function getSortColumn(string $sort): string
     {
+        // SECURITY: Only allow explicit whitelist values in ORDER BY to prevent SQL injection.
         $validSorts = [
             'address' => 'a.address ASC',
             'created' => 'a.created DESC',
