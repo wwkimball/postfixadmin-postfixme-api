@@ -38,21 +38,20 @@ class TokenService
         return JWT::encode($payload, $this->privateKey, $this->config['jwt']['algorithm']);
     }
 
-    public function createRefreshToken(string $mailbox, string $deviceId = null): array
+    public function createRefreshToken(string $mailbox): array
     {
         $token = bin2hex(random_bytes(32));
         $expiresAt = time() + $this->config['jwt']['refresh_token_ttl'];
 
         $db = Database::getConnection();
         $stmt = $db->prepare(
-            'INSERT INTO pfme_refresh_tokens (token, mailbox, device_id, expires_at, created_at, last_used_at)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO pfme_refresh_tokens (token, mailbox, expires_at, created_at, last_used_at)
+             VALUES (?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
             hash('sha256', $token),
             $mailbox,
-            $deviceId,
             date('Y-m-d H:i:s', $expiresAt),
             date('Y-m-d H:i:s'),
             date('Y-m-d H:i:s'),
@@ -101,7 +100,7 @@ class TokenService
         return $result ?: null;
     }
 
-    public function rotateRefreshToken(string $oldToken, string $mailbox, string $deviceId = null): array
+    public function rotateRefreshToken(string $oldToken, string $mailbox): array
     {
         $oldTokenHash = hash('sha256', $oldToken);
         $db = Database::getConnection();
@@ -137,14 +136,13 @@ class TokenService
 
         $stmt = $db->prepare(
             'INSERT INTO pfme_refresh_tokens
-             (token, mailbox, device_id, expires_at, created_at, last_used_at, family_id, rotated_from)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+             (token, mailbox, expires_at, created_at, last_used_at, family_id, rotated_from)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
         );
 
         $stmt->execute([
             $newTokenHash,
             $mailbox,
-            $deviceId,
             date('Y-m-d H:i:s', $expiresAt),
             date('Y-m-d H:i:s'),
             date('Y-m-d H:i:s'),

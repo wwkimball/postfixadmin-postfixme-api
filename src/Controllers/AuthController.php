@@ -46,8 +46,7 @@ class AuthController extends BaseController
             // Generate tokens
             $accessToken = $this->tokenService->createAccessToken($input['mailbox'], $domain);
             $refreshTokenData = $this->tokenService->createRefreshToken(
-                $input['mailbox'],
-                $input['device_id'] ?? null
+                $input['mailbox']
             );
 
             $this->success([
@@ -93,18 +92,26 @@ class AuthController extends BaseController
                 $this->error('Invalid or expired refresh token', 401, 'invalid_token');
             }
 
+            // Check rate limiting per mailbox (SEC-009)
+            if ($this->authService->isRateLimitedOnRefresh($tokenData['mailbox'])) {
+                $this->authService->recordFailedRefreshAttempt($tokenData['mailbox']);
+                $this->error('Too many refresh attempts. Please try again later.', 429, 'rate_limit_exceeded');
+            }
+
             // Get domain
             $domain = $this->authService->getDomainFromMailbox($tokenData['mailbox']);
 
             // Rotate refresh token (with grace period support)
             $newRefreshToken = $this->tokenService->rotateRefreshToken(
                 $input['refresh_token'],
-                $tokenData['mailbox'],
-                $tokenData['device_id']
+                $tokenData['mailbox']
             );
 
             // Generate new access token
             $accessToken = $this->tokenService->createAccessToken($tokenData['mailbox'], $domain);
+
+            // Record successful refresh attempt
+            $this->authService->recordSuccessfulRefreshAttempt($tokenData['mailbox']);
 
             $this->success([
                 'access_token' => $accessToken,
@@ -113,6 +120,10 @@ class AuthController extends BaseController
                 'expires_in' => $this->config['jwt']['access_token_ttl'],
             ]);
         } catch (\Exception $e) {
+            // Record failed refresh attempt
+            if (isset($tokenData['mailbox']) && !empty($tokenData['mailbox'])) {
+                $this->authService->recordFailedRefreshAttempt($tokenData['mailbox']);
+            }
             $this->error($e->getMessage(), 401, 'token_refresh_failed');
         }
     }

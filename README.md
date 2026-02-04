@@ -104,8 +104,7 @@ Authenticate with mailbox credentials.
 ```json
 {
   "mailbox": "user@example.com",
-  "password": "secret",
-  "device_id": "optional-device-identifier"
+  "password": "secret"
 }
 ```
 

@@ -205,6 +205,53 @@ class AuthService
         ]);
     }
 
+    public function isRateLimitedOnRefresh(string $mailbox): bool
+    {
+        $window = $this->config['security']['rate_limit_window'];
+        $maxAttempts = $this->config['security']['rate_limit_attempts'];
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'SELECT COUNT(*) as attempts FROM pfme_auth_log
+             WHERE mailbox = ? AND success = 0 AND attempted_at > DATE_SUB(NOW(), INTERVAL ? SECOND)'
+        );
+
+        $stmt->execute([$mailbox, $window]);
+        $result = $stmt->fetch();
+
+        return ($result['attempts'] ?? 0) >= $maxAttempts;
+    }
+
+    public function recordFailedRefreshAttempt(string $mailbox): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 0, ?, ?, NOW())'
+        );
+
+        $stmt->execute([
+            $mailbox,
+            $_SERVER['REMOTE_ADDR'] ?? null,
+            $_SERVER['HTTP_USER_AGENT'] ?? null,
+        ]);
+    }
+
+    public function recordSuccessfulRefreshAttempt(string $mailbox): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 1, ?, ?, NOW())'
+        );
+
+        $stmt->execute([
+            $mailbox,
+            $_SERVER['REMOTE_ADDR'] ?? null,
+            $_SERVER['HTTP_USER_AGENT'] ?? null,
+        ]);
+    }
+
     public function getDomainFromMailbox(string $mailbox): ?string
     {
         if (strpos($mailbox, '@') === false) {
