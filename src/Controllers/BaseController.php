@@ -8,10 +8,12 @@ namespace Pfme\Api\Controllers;
 abstract class BaseController
 {
     protected array $config;
+    protected array $authUser;
 
-    public function __construct()
+    public function __construct(?array $authUser = null)
     {
         $this->config = require __DIR__ . '/../../config/config.php';
+        $this->authUser = $authUser ?? [];
     }
 
     protected function getJsonInput(): array
@@ -33,7 +35,7 @@ abstract class BaseController
 
     protected function getAuthenticatedUser(): array
     {
-        return $GLOBALS['pfme_auth_user'] ?? [];
+        return $this->authUser;
     }
 
     protected function success(array $data, int $statusCode = 200): void

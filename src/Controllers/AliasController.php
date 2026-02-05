@@ -11,9 +11,9 @@ class AliasController extends BaseController
 {
     private AliasService $aliasService;
 
-    public function __construct()
+    public function __construct(?array $authUser = null)
     {
-        parent::__construct();
+        parent::__construct($authUser);
         $this->aliasService = new AliasService();
     }
 

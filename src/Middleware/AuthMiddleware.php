@@ -9,6 +9,8 @@ use Pfme\Api\Services\TokenService;
  */
 class AuthMiddleware implements MiddlewareInterface
 {
+    private array $authUser = [];
+
     public function handle(): void
     {
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
@@ -27,8 +29,8 @@ class AuthMiddleware implements MiddlewareInterface
             $tokenService = new TokenService();
             $payload = $tokenService->verifyAccessToken($token);
 
-            // Store authenticated user info in global context
-            $GLOBALS['pfme_auth_user'] = [
+            // Store authenticated user info for injection
+            $this->authUser = [
                 'mailbox' => $payload->sub,
                 'domain' => $payload->domain ?? null,
                 'jti' => $payload->jti ?? null,
@@ -36,6 +38,11 @@ class AuthMiddleware implements MiddlewareInterface
         } catch (\Exception $e) {
             $this->unauthorized($e->getMessage());
         }
+    }
+
+    public function getAuthenticatedUser(): array
+    {
+        return $this->authUser;
     }
 
     private function unauthorized(string $message): void

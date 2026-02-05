@@ -56,15 +56,21 @@ class Router
                 continue;
             }
 
+            $authUser = null;
+
             // Apply route-specific middleware
             foreach ($route['middleware'] as $mw) {
                 if ($mw instanceof MiddlewareInterface) {
                     $mw->handle();
+
+                    if ($mw instanceof \Pfme\Api\Middleware\AuthMiddleware) {
+                        $authUser = $mw->getAuthenticatedUser();
+                    }
                 }
             }
 
             // Call the handler
-            $controller = new $route['handler'][0]();
+            $controller = new $route['handler'][0]($authUser);
             $method = $route['handler'][1];
 
             call_user_func_array([$controller, $method], $params);

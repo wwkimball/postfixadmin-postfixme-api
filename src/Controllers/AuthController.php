@@ -13,9 +13,9 @@ class AuthController extends BaseController
     private AuthService $authService;
     private TokenService $tokenService;
 
-    public function __construct()
+    public function __construct(?array $authUser = null)
     {
-        parent::__construct();
+        parent::__construct($authUser);
         $this->authService = new AuthService();
         $this->tokenService = new TokenService();
     }
