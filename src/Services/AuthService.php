@@ -252,6 +252,98 @@ class AuthService
         ]);
     }
 
+    public function maintainAuthLogs(): void
+    {
+        $retentionDays = (int)($this->config['security']['auth_log_retention_days'] ?? 90);
+        $summaryEnabled = (bool)($this->config['security']['auth_log_summary_enabled'] ?? true);
+        $summaryLagDays = (int)($this->config['security']['auth_log_summary_lag_days'] ?? 1);
+        $archiveEnabled = (bool)($this->config['security']['auth_log_archive_enabled'] ?? false);
+        $archiveRetentionDays = (int)($this->config['security']['auth_log_archive_retention_days'] ?? 365);
+
+        if ($summaryEnabled) {
+            $this->aggregateAuthLogSummary(max(0, $summaryLagDays));
+        }
+
+        if ($retentionDays <= 0) {
+            return; // Retention disabled
+        }
+
+        if ($archiveEnabled) {
+            $this->archiveOldAuthLogs($retentionDays);
+
+            if ($archiveRetentionDays > 0) {
+                $this->cleanupArchivedAuthLogs($archiveRetentionDays);
+            }
+        } else {
+            $this->deleteOldAuthLogs($retentionDays);
+        }
+    }
+
+    private function aggregateAuthLogSummary(int $lagDays): void
+    {
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
+             SELECT mailbox,
+                    DATE(attempted_at) AS summary_date,
+                    SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed_attempts,
+                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS successful_attempts,
+                    NOW(),
+                    NOW()
+               FROM pfme_auth_log
+              WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+              GROUP BY mailbox, DATE(attempted_at)
+             ON DUPLICATE KEY UPDATE
+                    failed_attempts = VALUES(failed_attempts),
+                    successful_attempts = VALUES(successful_attempts),
+                    updated_at = NOW()'
+        );
+
+        $stmt->execute([$lagDays]);
+    }
+
+    private function deleteOldAuthLogs(int $retentionDays): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'DELETE FROM pfme_auth_log
+             WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+        );
+
+        $stmt->execute([$retentionDays]);
+    }
+
+    private function archiveOldAuthLogs(int $retentionDays): void
+    {
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_auth_log_archive (mailbox, success, ip_address, user_agent, attempted_at, archived_at)
+             SELECT mailbox, success, ip_address, user_agent, attempted_at, NOW()
+               FROM pfme_auth_log
+              WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+        );
+        $stmt->execute([$retentionDays]);
+
+        $stmt = $db->prepare(
+            'DELETE FROM pfme_auth_log
+             WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+        );
+        $stmt->execute([$retentionDays]);
+    }
+
+    private function cleanupArchivedAuthLogs(int $archiveRetentionDays): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'DELETE FROM pfme_auth_log_archive
+             WHERE archived_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+        );
+
+        $stmt->execute([$archiveRetentionDays]);
+    }
+
     public function getDomainFromMailbox(string $mailbox): ?string
     {
         if (strpos($mailbox, '@') === false) {

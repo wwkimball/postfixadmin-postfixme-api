@@ -34,6 +34,11 @@ return [
         'rate_limit_window' => (int)(getenv('PFME_RATE_LIMIT_WINDOW') ?: 300), // 5 minutes
         'lockout_threshold' => (int)(getenv('PFME_LOCKOUT_THRESHOLD') ?: 10),
         'lockout_duration' => (int)(getenv('PFME_LOCKOUT_DURATION') ?: 1800), // 30 minutes
+        'auth_log_retention_days' => (int)(getenv('PFME_AUTH_LOG_RETENTION_DAYS') ?: 90),
+        'auth_log_summary_enabled' => filter_var(getenv('PFME_AUTH_LOG_SUMMARY_ENABLED') ?: 'true', FILTER_VALIDATE_BOOLEAN),
+        'auth_log_summary_lag_days' => (int)(getenv('PFME_AUTH_LOG_SUMMARY_LAG_DAYS') ?: 1),
+        'auth_log_archive_enabled' => filter_var(getenv('PFME_AUTH_LOG_ARCHIVE_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+        'auth_log_archive_retention_days' => (int)(getenv('PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS') ?: 365),
     ],
 
     'pagination' => [

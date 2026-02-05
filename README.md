@@ -320,6 +320,8 @@ The API creates three additional tables in the PostfixAdmin database:
 - `pfme_refresh_tokens` - Stores refresh tokens with revocation support
 - `pfme_revoked_tokens` - Tracks revoked access tokens (JTI)
 - `pfme_auth_log` - Audit log for authentication attempts
+- `pfme_auth_log_summary` - Daily auth summary (mailbox + counts)
+- `pfme_auth_log_archive` - Archived auth log records (optional)
 
 Schema files are located in `schema/mysql/2026/01/001-pfme-initial.sql` and are applied via the existing schema automation.
 
@@ -331,6 +333,28 @@ Schema files are located in `schema/mysql/2026/01/001-pfme-initial.sql` and are 
 4. **Account Lockout**: Accounts are temporarily locked after excessive failures.
 5. **Token Revocation**: Both access and refresh tokens support server-side revocation.
 6. **Audit Logging**: All authentication attempts are logged with IP and user agent.
+
+## Auth Log Retention & Privacy
+
+PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation). Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.
+
+**Defaults**:
+- `PFME_AUTH_LOG_RETENTION_DAYS=90`
+- `PFME_AUTH_LOG_SUMMARY_ENABLED=true`
+- `PFME_AUTH_LOG_SUMMARY_LAG_DAYS=1`
+- `PFME_AUTH_LOG_ARCHIVE_ENABLED=false`
+- `PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS=365`
+
+**Behavior**:
+- **Summary**: Stores only mailbox + daily counts (no IP or user agent).
+- **Retention**: Deletes detailed logs older than the retention window.
+- **Archive (optional)**: Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by its own retention window.
+
+**Compliance guidance** (confirm with your compliance team):
+- **GDPR**: No fixed retention; use data minimization (typical 30–90 days detailed logs).
+- **PCI DSS**: 12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
+- **HIPAA**: No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
+- **SOC 2 / ISO 27001**: No prescriptive duration; adopt a documented policy (often 90–180 days detailed + summaries long-term).
 
 ## License
 
