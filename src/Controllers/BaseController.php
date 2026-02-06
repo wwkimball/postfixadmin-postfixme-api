@@ -2,6 +2,8 @@
 
 namespace Pfme\Api\Controllers;
 
+use Pfme\Api\Services\ErrorResponseService;
+
 /**
  * Base Controller with common functionality
  */
@@ -9,11 +11,13 @@ abstract class BaseController
 {
     protected array $config;
     protected array $authUser;
+    protected ErrorResponseService $errorResponseService;
 
     public function __construct(?array $authUser = null)
     {
         $this->config = require __DIR__ . '/../../config/config.php';
         $this->authUser = $authUser ?? [];
+        $this->errorResponseService = new ErrorResponseService();
     }
 
     protected function getJsonInput(): array
@@ -58,6 +62,21 @@ abstract class BaseController
             $response['details'] = $details;
         }
 
+        echo json_encode($response, JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+
+    protected function exceptionError(\Exception $e, int $statusCode = 400, string $code = 'error'): void
+    {
+        // Always log full exception server-side
+        error_log("Exception in " . get_class($this) . ": " . $e->getMessage() . "\n" . 
+                  "File: " . $e->getFile() . ":" . $e->getLine() . "\n" .
+                  "Trace: " . $e->getTraceAsString());
+
+        // Get response with details based on deployment stage
+        $response = $this->errorResponseService->getErrorResponse($e, $code, $statusCode);
+        
+        http_response_code($statusCode);
         echo json_encode($response, JSON_UNESCAPED_SLASHES);
         exit;
     }

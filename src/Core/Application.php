@@ -77,7 +77,7 @@ class Application
         ];
 
         // In development, include details
-        if (getenv('APP_ENV') === 'development') {
+        if (getenv('DEPLOYMENT_STAGE') === 'development') {
             $response['details'] = [
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),

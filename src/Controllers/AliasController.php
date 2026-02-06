@@ -64,7 +64,7 @@ class AliasController extends BaseController
 
             $this->success($alias, 201);
         } catch (\Exception $e) {
-            $this->error($e->getMessage(), 400, 'creation_failed');
+            $this->exceptionError($e, 400, 'creation_failed');
         }
     }
 
@@ -99,7 +99,7 @@ class AliasController extends BaseController
 
             $this->success($alias);
         } catch (\Exception $e) {
-            $this->error($e->getMessage(), 400, 'update_failed');
+            $this->exceptionError($e, 400, 'update_failed');
         }
     }
 
@@ -117,7 +117,7 @@ class AliasController extends BaseController
             $this->success(['message' => 'Alias deleted successfully']);
         } catch (\Exception $e) {
             $statusCode = ($e->getMessage() === 'Alias must be disabled before deletion') ? 409 : 400;
-            $this->error($e->getMessage(), $statusCode, 'deletion_failed');
+            $this->exceptionError($e, $statusCode, 'deletion_failed');
         }
     }
 
@@ -139,7 +139,7 @@ class AliasController extends BaseController
 
             $this->success(['destinations' => $destinations]);
         } catch (\Exception $e) {
-            $this->error($e->getMessage(), 400, 'destinations_failed');
+            $this->exceptionError($e, 400, 'destinations_failed');
         }
     }
 }

@@ -60,7 +60,7 @@ class AuthController extends BaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            $this->error($e->getMessage(), 401, 'authentication_failed');
+            $this->exceptionError($e, 401, 'authentication_failed');
         }
     }
 
@@ -124,7 +124,7 @@ class AuthController extends BaseController
             if (isset($tokenData['mailbox']) && !empty($tokenData['mailbox'])) {
                 $this->authService->recordFailedRefreshAttempt($tokenData['mailbox']);
             }
-            $this->error($e->getMessage(), 401, 'token_refresh_failed');
+            $this->exceptionError($e, 401, 'token_refresh_failed');
         }
     }
 

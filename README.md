@@ -89,7 +89,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `APP_ENV` | `production` | Application environment (development/production) |
+| `DEPLOYMENT_STAGE` | `production` | Application environment (development/qa/lab/production) |
 
 ## API Endpoints
 
