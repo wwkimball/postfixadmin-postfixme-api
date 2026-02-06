@@ -12,6 +12,7 @@ use Pfme\Api\Core\Application;
 use Pfme\Api\Core\Router;
 use Pfme\Api\Middleware\CorsMiddleware;
 use Pfme\Api\Middleware\JsonMiddleware;
+use Pfme\Api\Middleware\SecurityHeadersMiddleware;
 use Pfme\Api\Middleware\TlsMiddleware;
 use Pfme\Api\Middleware\AuthMiddleware;
 use Pfme\Api\Controllers\AuthController;
@@ -24,6 +25,7 @@ $router = new Router();
 // Global middleware
 $app->use(new CorsMiddleware());
 $app->use(new JsonMiddleware());
+$app->use(new SecurityHeadersMiddleware());
 $app->use(new TlsMiddleware());
 
 // Health check endpoint (no auth required)
