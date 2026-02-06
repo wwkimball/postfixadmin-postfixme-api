@@ -73,22 +73,22 @@ class AuthService
             switch (strtoupper($scheme)) {
                 case 'CRYPT':
                 case 'BLF-CRYPT':
-                    return crypt($plainPassword, $hash) === $hash;
+                    return hash_equals($hash, crypt($plainPassword, $hash));
 
                 case 'MD5-CRYPT':
-                    return crypt($plainPassword, $hash) === $hash;
+                    return hash_equals($hash, crypt($plainPassword, $hash));
 
                 case 'SHA256-CRYPT':
-                    return crypt($plainPassword, $hash) === $hash;
+                    return hash_equals($hash, crypt($plainPassword, $hash));
 
                 case 'SHA512-CRYPT':
-                    return crypt($plainPassword, $hash) === $hash;
+                    return hash_equals($hash, crypt($plainPassword, $hash));
 
                 case 'MD5':
-                    return md5($plainPassword) === $hash;
+                    return hash_equals($hash, md5($plainPassword));
 
                 case 'SHA256':
-                    return hash('sha256', $plainPassword) === $hash;
+                    return hash_equals($hash, hash('sha256', $plainPassword));
 
                 case 'ARGON2I':
                 case 'ARGON2ID':
@@ -96,7 +96,7 @@ class AuthService
 
                 case 'PLAIN':
                 case 'CLEARTEXT':
-                    return $plainPassword === $hash;
+                    return hash_equals($hash, $plainPassword);
 
                 default:
                     error_log("Unknown password scheme: {$scheme}");
@@ -110,7 +110,7 @@ class AuthService
         }
 
         // Try crypt
-        if (crypt($plainPassword, $hashedPassword) === $hashedPassword) {
+        if (hash_equals($hashedPassword, crypt($plainPassword, $hashedPassword))) {
             return true;
         }
 
