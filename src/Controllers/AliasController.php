@@ -3,6 +3,7 @@
 namespace Pfme\Api\Controllers;
 
 use Pfme\Api\Services\AliasService;
+use Pfme\Api\Services\ValidationService;
 
 /**
  * Alias Controller - manages email alias operations
@@ -10,11 +11,13 @@ use Pfme\Api\Services\AliasService;
 class AliasController extends BaseController
 {
     private AliasService $aliasService;
+    private ValidationService $validationService;
 
     public function __construct(?array $authUser = null)
     {
         parent::__construct($authUser);
         $this->aliasService = new AliasService();
+        $this->validationService = new ValidationService();
     }
 
     public function list(): void
@@ -54,6 +57,12 @@ class AliasController extends BaseController
             $this->error('destinations must be a non-empty array', 400, 'invalid_input');
         }
 
+        // Validate RFC 5321 local part format
+        $validation = $this->validationService->validateLocalPart($input['local_part']);
+        if (!$validation['valid']) {
+            $this->error($validation['error'], 400, 'invalid_local_part_format');
+        }
+
         try {
             $alias = $this->aliasService->createAlias(
                 $input['local_part'],
@@ -77,6 +86,11 @@ class AliasController extends BaseController
             $updates = [];
 
             if (isset($input['local_part'])) {
+                // Validate RFC 5321 local part format
+                $validation = $this->validationService->validateLocalPart($input['local_part']);
+                if (!$validation['valid']) {
+                    $this->error($validation['error'], 400, 'invalid_local_part_format');
+                }
                 $updates['local_part'] = $input['local_part'];
             }
 

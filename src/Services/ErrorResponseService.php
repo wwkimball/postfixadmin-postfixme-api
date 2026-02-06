@@ -4,7 +4,7 @@ namespace Pfme\Api\Services;
 
 /**
  * Error Response Service
- * 
+ *
  * Handles error response formatting based on deployment stage.
  * - development/qa/lab: Returns full exception details for debugging
  * - production: Returns generic messages for security
@@ -20,7 +20,7 @@ class ErrorResponseService
 
     /**
      * Get error message based on deployment stage
-     * 
+     *
      * @param \Exception $e The exception to extract message from
      * @return string Error message appropriate for current stage
      */
@@ -34,7 +34,7 @@ class ErrorResponseService
 
     /**
      * Get error response array with optional details based on stage
-     * 
+     *
      * @param \Exception $e The exception
      * @param string $code The error code
      * @param int $statusCode HTTP status code
@@ -63,7 +63,7 @@ class ErrorResponseService
 
     /**
      * Get formatted stack trace
-     * 
+     *
      * @param \Exception $e The exception
      * @return array Formatted trace array
      */
@@ -83,7 +83,7 @@ class ErrorResponseService
 
     /**
      * Check if running in development/test stage
-     * 
+     *
      * @return bool True if in development, qa, lab, or testing stage
      */
     private function isDevStage(): bool
@@ -92,7 +92,7 @@ class ErrorResponseService
             'development',
             'dev',
             'qa',
-            'lab', 
+            'lab',
             'testing',
             'test',
         ]);
@@ -100,7 +100,7 @@ class ErrorResponseService
 
     /**
      * Get current deployment stage
-     * 
+     *
      * @return string The deployment stage
      */
     public function getDeploymentStage(): string
