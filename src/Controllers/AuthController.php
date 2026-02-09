@@ -141,12 +141,21 @@ class AuthController extends BaseController
             $this->error('current_password and new_password are required', 400, 'invalid_input');
         }
 
+        // Check rate limiting per mailbox (SEC-021)
+        if ($this->authService->isRateLimitedOnPasswordChange($user['mailbox'])) {
+            $this->authService->recordFailedPasswordChangeAttempt($user['mailbox']);
+            $this->error('Too many password change attempts. Please try again later.', 429, 'rate_limit_exceeded');
+        }
+
         try {
             $this->authService->changeMailboxPassword(
                 $user['mailbox'],
                 $input['current_password'],
                 $input['new_password']
             );
+
+            // Record successful password change
+            $this->authService->recordSuccessfulPasswordChangeAttempt($user['mailbox']);
 
             $this->tokenService->revokeAllTokensForMailbox(
                 $user['mailbox'],
@@ -159,6 +168,8 @@ class AuthController extends BaseController
             $this->error($e->getMessage(), 400, 'invalid_password');
         } catch (\RuntimeException $e) {
             if ($e->getCode() === 401) {
+                // Record failed password change attempt (incorrect current password)
+                $this->authService->recordFailedPasswordChangeAttempt($user['mailbox']);
                 $this->error('Current password is incorrect', 401, 'invalid_current_password');
             }
 
