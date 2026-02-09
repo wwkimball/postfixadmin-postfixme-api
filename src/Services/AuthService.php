@@ -252,6 +252,104 @@ class AuthService
         ]);
     }
 
+    public function changeMailboxPassword(string $mailbox, string $currentPassword, string $newPassword): void
+    {
+        if (!$this->isValidEmail($mailbox)) {
+            throw new \RuntimeException('Invalid mailbox', 401);
+        }
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare('SELECT username, password, active FROM mailbox WHERE username = ?');
+        $stmt->execute([$mailbox]);
+        $user = $stmt->fetch();
+
+        if (!$user || !$user['active']) {
+            throw new \RuntimeException('Invalid mailbox', 401);
+        }
+
+        if (!$this->verifyPassword($currentPassword, $user['password'])) {
+            throw new \RuntimeException('Current password is incorrect', 401);
+        }
+
+        $policy = $this->validatePasswordPolicy($newPassword, $currentPassword);
+        if (!$policy['valid']) {
+            throw new \InvalidArgumentException(implode(' ', $policy['errors']));
+        }
+
+        $newHash = $this->hashPasswordForExistingScheme($newPassword, $user['password']);
+
+        $stmt = $db->prepare('UPDATE mailbox SET password = ? WHERE username = ?');
+        $stmt->execute([$newHash, $mailbox]);
+    }
+
+    public function validatePasswordPolicy(string $newPassword, string $currentPassword): array
+    {
+        $errors = [];
+
+        $minLength = $this->config['security']['password_min_length'] ?? 16;
+        $requireSpace = $this->config['security']['password_require_space'] ?? true;
+        $requireGrammar = $this->config['security']['password_require_grammar_symbol'] ?? true;
+
+        if (strlen($newPassword) < $minLength) {
+            $errors[] = "Passphrase must be at least {$minLength} characters.";
+        }
+
+        if ($requireSpace && !preg_match('/\s/', $newPassword)) {
+            $errors[] = 'Passphrase must include at least one space.';
+        }
+
+        if ($requireGrammar && !preg_match('/[.\,!?;:\'"\-\(\)\[\]\{\}@#$%^&*]/', $newPassword)) {
+            $errors[] = 'Passphrase must include at least one grammar symbol (. , ! ? ; : \' " - ( ) [ ] { } @ # $ % ^ & *).';
+        }
+
+        if (hash_equals($newPassword, $currentPassword)) {
+            $errors[] = 'New passphrase must be different from current password.';
+        }
+
+        return [
+            'valid' => empty($errors),
+            'errors' => $errors,
+        ];
+    }
+
+    private function hashPasswordForExistingScheme(string $newPassword, string $existingHash): string
+    {
+        if (preg_match('/^\{([^}]+)\}(.+)$/', $existingHash, $matches)) {
+            $scheme = strtoupper($matches[1]);
+            $hash = $matches[2];
+
+            switch ($scheme) {
+                case 'CRYPT':
+                case 'BLF-CRYPT':
+                case 'MD5-CRYPT':
+                case 'SHA256-CRYPT':
+                case 'SHA512-CRYPT':
+                    return '{' . $scheme . '}' . crypt($newPassword, $hash);
+
+                case 'MD5':
+                    return '{' . $scheme . '}' . md5($newPassword);
+
+                case 'SHA256':
+                    return '{' . $scheme . '}' . hash('sha256', $newPassword);
+
+                case 'ARGON2I':
+                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_ARGON2I);
+
+                case 'ARGON2ID':
+                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_ARGON2ID);
+
+                case 'PLAIN':
+                case 'CLEARTEXT':
+                    return '{' . $scheme . '}' . $newPassword;
+
+                default:
+                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_DEFAULT);
+            }
+        }
+
+        return password_hash($newPassword, PASSWORD_DEFAULT);
+    }
+
     public function maintainAuthLogs(): void
     {
         $retentionDays = (int)($this->config['security']['auth_log_retention_days'] ?? 90);

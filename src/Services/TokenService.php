@@ -73,6 +73,10 @@ class TokenService
                 throw new \Exception('Token has been revoked');
             }
 
+            if ($this->isMailboxTokenInvalidated($decoded->sub ?? '', $decoded->iat ?? 0)) {
+                throw new \Exception('Token has been revoked');
+            }
+
             return $decoded;
         } catch (\Exception $e) {
             throw new \Exception('Invalid or expired token: ' . $e->getMessage());
@@ -215,6 +219,23 @@ class TokenService
         $stmt->execute([$jti]);
     }
 
+    public function revokeAllTokensForMailbox(string $mailbox, ?string $currentJti = null): void
+    {
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare(
+            'UPDATE pfme_refresh_tokens SET revoked_at = NOW()
+             WHERE mailbox = ? AND revoked_at IS NULL'
+        );
+        $stmt->execute([$mailbox]);
+
+        if (!empty($currentJti)) {
+            $this->revokeAccessToken($currentJti);
+        }
+
+        $this->recordPasswordChange($mailbox);
+    }
+
     private function isTokenRevoked(string $jti): bool
     {
         if (empty($jti)) {
@@ -226,6 +247,38 @@ class TokenService
         $stmt->execute([$jti]);
 
         return $stmt->fetch() !== false;
+    }
+
+    private function isMailboxTokenInvalidated(string $mailbox, int $issuedAt): bool
+    {
+        if (empty($mailbox) || empty($issuedAt)) {
+            return false;
+        }
+
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'SELECT password_changed_at FROM pfme_mailbox_security WHERE mailbox = ?'
+        );
+        $stmt->execute([$mailbox]);
+        $row = $stmt->fetch();
+
+        if (!$row || empty($row['password_changed_at'])) {
+            return false;
+        }
+
+        $changedAt = strtotime($row['password_changed_at']);
+        return $changedAt >= $issuedAt;
+    }
+
+    private function recordPasswordChange(string $mailbox): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'INSERT INTO pfme_mailbox_security (mailbox, password_changed_at, updated_at)
+             VALUES (?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE password_changed_at = NOW(), updated_at = NOW()'
+        );
+        $stmt->execute([$mailbox]);
     }
 
     private function generateJti(): string

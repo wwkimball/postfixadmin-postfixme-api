@@ -39,6 +39,9 @@ return [
         'auth_log_summary_lag_days' => (int)(getenv('PFME_AUTH_LOG_SUMMARY_LAG_DAYS') ?: 1),
         'auth_log_archive_enabled' => filter_var(getenv('PFME_AUTH_LOG_ARCHIVE_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
         'auth_log_archive_retention_days' => (int)(getenv('PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS') ?: 365),
+        'password_min_length' => (int)(getenv('PFME_PASSWORD_MIN_LENGTH') ?: 10),
+        'password_require_space' => filter_var(getenv('PFME_PASSWORD_REQUIRE_SPACE') ?: 'true', FILTER_VALIDATE_BOOLEAN),
+        'password_require_grammar_symbol' => filter_var(getenv('PFME_PASSWORD_REQUIRE_GRAMMAR_SYMBOL') ?: 'true', FILTER_VALIDATE_BOOLEAN),
     ],
 
     'pagination' => [

@@ -128,6 +128,46 @@ class AuthController extends BaseController
         }
     }
 
+    public function changePassword(): void
+    {
+        $user = $this->getAuthenticatedUser();
+        $input = $this->getJsonInput();
+
+        if (empty($user['mailbox'])) {
+            $this->error('Unauthorized', 401, 'unauthorized');
+        }
+
+        if (empty($input['current_password']) || empty($input['new_password'])) {
+            $this->error('current_password and new_password are required', 400, 'invalid_input');
+        }
+
+        try {
+            $this->authService->changeMailboxPassword(
+                $user['mailbox'],
+                $input['current_password'],
+                $input['new_password']
+            );
+
+            $this->tokenService->revokeAllTokensForMailbox(
+                $user['mailbox'],
+                $user['jti'] ?? null
+            );
+
+            http_response_code(204);
+            exit;
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage(), 400, 'invalid_password');
+        } catch (\RuntimeException $e) {
+            if ($e->getCode() === 401) {
+                $this->error('Current password is incorrect', 401, 'invalid_current_password');
+            }
+
+            $this->exceptionError($e, 400, 'change_password_failed');
+        } catch (\Exception $e) {
+            $this->exceptionError($e, 400, 'change_password_failed');
+        }
+    }
+
     public function health(): void
     {
         $this->success([
