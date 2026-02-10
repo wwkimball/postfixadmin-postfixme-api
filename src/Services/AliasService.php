@@ -19,7 +19,8 @@ class AliasService
     ): array {
         $db = Database::getConnection();
 
-        // Build WHERE clause
+        // Build WHERE clause - use LIKE for broad filtering, then verify exact match in PHP
+        // LIKE gives us superset (may include false positives), application filter ensures exact match
         $where = ['a.goto LIKE ?'];
         $params = ["%{$mailbox}%"];
 
@@ -36,26 +37,31 @@ class AliasService
 
         $whereClause = implode(' AND ', $where);
 
-        // Get total count
-        $countSql = "SELECT COUNT(*) as total FROM alias a WHERE {$whereClause}";
-        $stmt = $db->prepare($countSql);
-        $stmt->execute($params);
-        $total = $stmt->fetch()['total'];
-
-        // Get paginated results
-        $offset = ($page - 1) * $perPage;
-
+        // Fetch all matching aliases (LIKE gives superset, we'll filter precisely in PHP)
         $orderBy = $this->getSortColumn($sort);
-        $sql = "SELECT * FROM alias a WHERE {$whereClause} ORDER BY {$orderBy} LIMIT ? OFFSET ?";
+        $sql = "SELECT * FROM alias a WHERE {$whereClause} ORDER BY {$orderBy}";
 
         $stmt = $db->prepare($sql);
-        $stmt->execute(array_merge($params, [$perPage, $offset]));
-        $aliases = $stmt->fetchAll();
+        $stmt->execute($params);
+        $allAliases = $stmt->fetchAll();
+
+        // Application-side authorization: filter to only aliases where mailbox is exact destination
+        $authorizedAliases = array_filter($allAliases, function ($alias) use ($mailbox) {
+            return $this->isUserAuthorizedForAlias($alias['goto'], $mailbox);
+        });
+
+        // Re-index array after filtering
+        $authorizedAliases = array_values($authorizedAliases);
+        $total = count($authorizedAliases);
+
+        // Apply pagination to filtered results
+        $offset = ($page - 1) * $perPage;
+        $paginatedAliases = array_slice($authorizedAliases, $offset, $perPage);
 
         // Transform results
         $result = array_map(function ($alias) use ($mailbox) {
             return $this->transformAlias($alias, $mailbox);
-        }, $aliases);
+        }, $paginatedAliases);
 
         return [
             'data' => $result,
@@ -66,13 +72,19 @@ class AliasService
     public function getAliasById(string $address, string $mailbox): ?array
     {
         $db = Database::getConnection();
-        $stmt = $db->prepare('SELECT * FROM alias WHERE address = ? AND goto LIKE ?');
-        $stmt->execute([$address, "%{$mailbox}%"]);
 
+        // Fetch alias by address only (no authorization check in SQL)
+        $stmt = $db->prepare('SELECT * FROM alias WHERE address = ?');
+        $stmt->execute([$address]);
         $alias = $stmt->fetch();
 
         if (!$alias) {
             return null;
+        }
+
+        // Authorization check: verify mailbox is in destinations list
+        if (!$this->isUserAuthorizedForAlias($alias['goto'], $mailbox)) {
+            return null;  // User not authorized
         }
 
         return $this->transformAlias($alias, $mailbox);
@@ -228,6 +240,27 @@ class AliasService
 
         // Additional policy checks could be added here
         // For example: checking against domain's allowed destination patterns
+    }
+
+    /**
+     * Application-side authorization check for SEC-026 mitigation.
+     * Verifies user's mailbox is an exact match in the comma-separated goto destinations.
+     *
+     * @param string $goto Comma-separated list of destination email addresses
+     * @param string $mailbox User's mailbox to check for authorization
+     * @return bool True if mailbox is authorized (exact match in destinations), false otherwise
+     */
+    private function isUserAuthorizedForAlias(string $goto, string $mailbox): bool
+    {
+        // Parse destinations from comma-separated goto field
+        $destinations = array_filter(array_map('trim', explode(',', $goto)));
+
+        // Normalize for case-insensitive comparison (email addresses are case-insensitive)
+        $normalizedMailbox = strtolower(trim($mailbox));
+        $normalizedDestinations = array_map('strtolower', $destinations);
+
+        // Exact match required - prevents substring matching vulnerability
+        return in_array($normalizedMailbox, $normalizedDestinations, true);
     }
 
     private function getSortColumn(string $sort): string
