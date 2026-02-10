@@ -186,4 +186,16 @@ class AuthController extends BaseController
             'timestamp' => time(),
         ]);
     }
+
+    public function passwordPolicy(): void
+    {
+        // Public endpoint - returns current password policy requirements
+        // No authentication required (users need to see policy before login)
+        $this->success([
+            'min_length' => $this->config['security']['password_min_length'],
+            'require_space' => $this->config['security']['password_require_space'],
+            'require_grammar_symbol' => $this->config['security']['password_require_grammar_symbol'],
+            'grammar_symbols' => '. , ! ? ; : \'" - ( ) [ ] { } @ # $ % ^ & *',
+        ]);
+    }
 }

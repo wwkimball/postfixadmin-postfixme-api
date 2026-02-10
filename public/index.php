@@ -34,6 +34,7 @@ $router->get('/api/v1/health', [AuthController::class, 'health']);
 // Public routes (no auth required)
 $router->post('/api/v1/auth/login', [AuthController::class, 'login']);
 $router->post('/api/v1/auth/refresh', [AuthController::class, 'refresh']);
+$router->get('/api/v1/auth/password-policy', [AuthController::class, 'passwordPolicy']);
 
 // Protected routes (auth required)
 $router->post('/api/v1/auth/logout', [AuthController::class, 'logout'], [new AuthMiddleware()]);
