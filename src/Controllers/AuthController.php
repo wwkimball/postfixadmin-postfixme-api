@@ -68,9 +68,13 @@ class AuthController extends BaseController
     {
         $user = $this->getAuthenticatedUser();
 
-        // Revoke the current access token
-        if (!empty($user['jti'])) {
-            $this->tokenService->revokeAccessToken($user['jti']);
+        // SEC-031 mitigation: Revoke all refresh tokens AND current access token
+        // Ensures complete session termination - user expects logout to invalidate all tokens
+        if (!empty($user['mailbox'])) {
+            $this->tokenService->revokeAllTokensForMailbox(
+                $user['mailbox'],
+                $user['jti'] ?? null
+            );
         }
 
         $this->success(['message' => 'Logged out successfully']);
