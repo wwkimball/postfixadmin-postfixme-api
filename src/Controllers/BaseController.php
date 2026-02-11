@@ -68,10 +68,10 @@ abstract class BaseController
 
     protected function exceptionError(\Exception $e, int $statusCode = 400, string $code = 'error'): void
     {
-        // Always log full exception server-side
+        // SEC-034 mitigation: Log with safe trace (full in dev, sanitized in production)
         error_log("Exception in " . get_class($this) . ": " . $e->getMessage() . "\n" .
                   "File: " . $e->getFile() . ":" . $e->getLine() . "\n" .
-                  "Trace: " . $e->getTraceAsString());
+                  "Trace: " . $this->errorResponseService->getSafeTraceString($e));
 
         // Get response with details based on deployment stage
         $response = $this->errorResponseService->getErrorResponse($e, $code, $statusCode);

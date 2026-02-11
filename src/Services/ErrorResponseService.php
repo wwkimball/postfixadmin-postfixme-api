@@ -107,4 +107,92 @@ class ErrorResponseService
     {
         return $this->deploymentStage;
     }
+
+    /**
+     * Get safe stack trace string for logging
+     * SEC-034 mitigation: Redacts sensitive arguments in production
+     *
+     * @param \Exception $e The exception
+     * @return string Safe trace string (full in dev, sanitized in production)
+     */
+    public function getSafeTraceString(\Exception $e): string
+    {
+        // In development stages, return full trace for debugging
+        if ($this->isDevStage()) {
+            return $e->getTraceAsString();
+        }
+
+        // In production/staging, sanitize sensitive arguments
+        $trace = $e->getTrace();
+        $safeTrace = [];
+
+        // Sensitive parameter names to redact
+        $sensitiveParams = ['password', 'token', 'secret', 'apikey', 'api_key', 'auth', 'credential'];
+
+        foreach ($trace as $index => $frame) {
+            $file = $frame['file'] ?? '[internal function]';
+            $line = $frame['line'] ?? 0;
+            $function = $frame['function'] ?? '';
+            $class = isset($frame['class']) ? $frame['class'] . $frame['type'] : '';
+
+            // Build function call with sanitized arguments
+            $args = [];
+            if (isset($frame['args']) && is_array($frame['args'])) {
+                foreach ($frame['args'] as $argIndex => $arg) {
+                    // Check if this argument position corresponds to a sensitive parameter
+                    $shouldRedact = false;
+
+                    // Redact if function name contains sensitive keywords
+                    $lowerFunction = strtolower($function);
+                    foreach ($sensitiveParams as $sensitive) {
+                        if (strpos($lowerFunction, $sensitive) !== false && $argIndex > 0) {
+                            $shouldRedact = true;
+                            break;
+                        }
+                    }
+
+                    if ($shouldRedact) {
+                        $args[] = '[REDACTED]';
+                    } else {
+                        $args[] = $this->formatArgument($arg);
+                    }
+                }
+            }
+
+            $argsString = implode(', ', $args);
+            $location = $line > 0 ? "$file($line)" : $file;
+            $safeTrace[] = "#{$index} {$location}: {$class}{$function}({$argsString})";
+        }
+
+        return implode("\n", $safeTrace);
+    }
+
+    /**
+     * Format an argument for safe logging
+     *
+     * @param mixed $arg The argument to format
+     * @return string Formatted argument
+     */
+    private function formatArgument($arg): string
+    {
+        if (is_string($arg)) {
+            return "'" . (strlen($arg) > 50 ? substr($arg, 0, 47) . '...' : $arg) . "'";
+        }
+        if (is_numeric($arg)) {
+            return (string)$arg;
+        }
+        if (is_bool($arg)) {
+            return $arg ? 'true' : 'false';
+        }
+        if (is_null($arg)) {
+            return 'NULL';
+        }
+        if (is_array($arg)) {
+            return 'Array';
+        }
+        if (is_object($arg)) {
+            return 'Object(' . get_class($arg) . ')';
+        }
+        return 'Unknown';
+    }
 }
