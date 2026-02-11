@@ -127,6 +127,18 @@ class TokenService
             throw new \Exception('Invalid or expired refresh token');
         }
 
+        // SEC-032 mitigation: Detect token reuse - if token was already rotated, it indicates theft
+        if (!empty($oldTokenData['rotated_at'])) {
+            // Token reuse detected - revoke entire family to prevent further use
+            $familyId = $oldTokenData['family_id'] ?: $oldTokenHash;
+            $this->revokeTokenFamily($familyId);
+
+            // Log security event
+            error_log("Security Alert: Refresh token reuse detected for mailbox {$mailbox}. Family {$familyId} revoked.");
+
+            throw new \Exception('Token reuse detected - possible token theft. All tokens in family have been revoked.');
+        }
+
         // Check if this token is part of a family that's been revoked
         if ($oldTokenData['family_id'] && $this->isTokenFamilyRevoked($oldTokenData['family_id'])) {
             throw new \Exception('Token family has been revoked - possible token theft detected');
@@ -194,6 +206,17 @@ class TokenService
         $stmt->execute([$familyId]);
 
         return $stmt->fetch() !== false;
+    }
+
+    private function revokeTokenFamily(string $familyId): void
+    {
+        $db = Database::getConnection();
+        $stmt = $db->prepare(
+            'UPDATE pfme_refresh_tokens
+             SET revoked_at = NOW()
+             WHERE family_id = ? AND revoked_at IS NULL'
+        );
+        $stmt->execute([$familyId]);
     }
 
     public function revokeRefreshToken(string $token): void
