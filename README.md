@@ -69,7 +69,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 | `PFME_RATE_LIMIT_WINDOW` | `300` | Rate limit window (seconds, 5 min) |
 | `PFME_LOCKOUT_THRESHOLD` | `10` | Failed attempts before lockout |
 | `PFME_LOCKOUT_DURATION` | `1800` | Lockout duration (seconds, 30 min) |
-| `PFME_PASSWORD_MIN_LENGTH` | `16` | Minimum passphrase length (8-64 recommended) |
+| `PFME_PASSWORD_MIN_LENGTH` | `10` | Minimum passphrase length (8-64 recommended) |
 | `PFME_PASSWORD_REQUIRE_SPACE` | `true` | Require at least one space in passphrase |
 | `PFME_PASSWORD_REQUIRE_GRAMMAR_SYMBOL` | `true` | Require grammar symbol (. , ! ? ; : ' " - etc.) |
 

@@ -333,7 +333,7 @@ class AuthService
     {
         $errors = [];
 
-        $minLength = $this->config['security']['password_min_length'] ?? 16;
+        $minLength = $this->config['security']['password_min_length'] ?? 10;
         $requireSpace = $this->config['security']['password_require_space'] ?? true;
         $requireGrammar = $this->config['security']['password_require_grammar_symbol'] ?? true;
 
