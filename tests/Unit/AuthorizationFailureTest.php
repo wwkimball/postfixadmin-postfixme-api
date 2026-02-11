@@ -30,17 +30,16 @@ class AuthorizationFailureTest extends TestCase
 
         // Create a valid refresh token
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, ?)'
         );
 
         $token = hash('sha256', 'test_token_' . microtime());
-        $jti = hash('sha256', 'jti_' . microtime());
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
-        $familyId = 'family_' . bin2hex(random_bytes(16));
+        $createdAt = date('Y-m-d H:i:s');
         $revokedAt = date('Y-m-d H:i:s');
 
-        $stmt->execute([$testMailbox, $token, $jti, $expiresAt, null, $familyId, $revokedAt]);
+        $stmt->execute([$testMailbox, $token, $expiresAt, $createdAt, $revokedAt]);
 
         // Verify the token is marked as revoked
         $stmt = $this->db->prepare(
@@ -62,16 +61,15 @@ class AuthorizationFailureTest extends TestCase
 
         // Create an expired refresh token
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, NULL)'
         );
 
         $token = hash('sha256', 'test_token_' . microtime());
-        $jti = hash('sha256', 'jti_' . microtime());
         $expiresAt = date('Y-m-d H:i:s', strtotime('-1 day')); // Expired yesterday
-        $familyId = 'family_' . bin2hex(random_bytes(16));
+        $createdAt = date('Y-m-d H:i:s', strtotime('-2 days'));
 
-        $stmt->execute([$testMailbox, $token, $jti, $expiresAt, null, $familyId]);
+        $stmt->execute([$testMailbox, $token, $expiresAt, $createdAt]);
 
         // Verify the token is expired
         $stmt = $this->db->prepare(
@@ -94,35 +92,32 @@ class AuthorizationFailureTest extends TestCase
     public function testTokenRotationInvalidatesOldToken(): void
     {
         $testMailbox = 'authfail-test-rotation@example.com';
-        $familyId = 'family_' . bin2hex(random_bytes(16));
 
         // Create initial token
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, NULL)'
         );
 
         $oldToken = hash('sha256', 'old_token_' . microtime());
-        $oldJti = hash('sha256', 'old_jti_' . microtime());
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
+        $createdAt = date('Y-m-d H:i:s');
 
-        $stmt->execute([$testMailbox, $oldToken, $oldJti, $expiresAt, null, $familyId]);
+        $stmt->execute([$testMailbox, $oldToken, $expiresAt, $createdAt]);
 
         // Create rotated token (simulate token rotation)
         $newToken = hash('sha256', 'new_token_' . microtime());
-        $newJti = hash('sha256', 'new_jti_' . microtime());
-        $rotatedAt = date('Y-m-d H:i:s');
 
-        $stmt->execute([$testMailbox, $newToken, $newJti, $expiresAt, $rotatedAt, $familyId]);
+        $stmt->execute([$testMailbox, $newToken, $expiresAt, $createdAt]);
 
         // Verify both tokens exist
         $stmt = $this->db->prepare(
-            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE mailbox = ? AND family_id = ?'
+            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE mailbox = ?'
         );
-        $stmt->execute([$testMailbox, $familyId]);
+        $stmt->execute([$testMailbox]);
         $result = $stmt->fetch();
 
-        $this->assertEquals(2, $result['cnt'], 'Both old and new tokens should exist in family');
+        $this->assertEquals(2, $result['cnt'], 'Both old and new tokens should exist for mailbox');
     }
 
     /**
@@ -163,26 +158,23 @@ class AuthorizationFailureTest extends TestCase
     {
         $mailbox1 = 'authfail-test-iso1@example.com';
         $mailbox2 = 'authfail-test-iso2@example.com';
-        $familyId1 = 'family_' . bin2hex(random_bytes(16));
-        $familyId2 = 'family_' . bin2hex(random_bytes(16));
 
         // Create token for mailbox1
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, NULL)'
         );
 
         $token1 = hash('sha256', 'token1_' . microtime());
-        $jti1 = hash('sha256', 'jti1_' . microtime());
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
+        $createdAt = date('Y-m-d H:i:s');
 
-        $stmt->execute([$mailbox1, $token1, $jti1, $expiresAt, null, $familyId1]);
+        $stmt->execute([$mailbox1, $token1, $expiresAt, $createdAt]);
 
         // Create token for mailbox2
         $token2 = hash('sha256', 'token2_' . microtime());
-        $jti2 = hash('sha256', 'jti2_' . microtime());
 
-        $stmt->execute([$mailbox2, $token2, $jti2, $expiresAt, null, $familyId2]);
+        $stmt->execute([$mailbox2, $token2, $expiresAt, $createdAt]);
 
         // Verify tokens are stored separately
         $stmt = $this->db->prepare(
@@ -254,50 +246,49 @@ class AuthorizationFailureTest extends TestCase
     public function testCompromisedTokenFamilyInvalidated(): void
     {
         $testMailbox = 'authfail-test-family@example.com';
-        $familyId = 'family_' . bin2hex(random_bytes(16));
 
-        // Create multiple tokens in same family (simulating rotation history)
+        // Create multiple tokens for same mailbox (simulating rotation history)
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, NULL)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, NULL)'
         );
 
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
+        $createdAt = date('Y-m-d H:i:s');
         $tokens = [];
 
         for ($i = 0; $i < 3; $i++) {
             $token = hash('sha256', "token_{$i}_" . microtime());
-            $jti = hash('sha256', "jti_{$i}_" . microtime());
             $tokens[] = $token;
 
-            $stmt->execute([$testMailbox, $token, $jti, $expiresAt, null, $familyId]);
+            $stmt->execute([$testMailbox, $token, $expiresAt, $createdAt]);
         }
 
-        // If any token in family is detected as compromised, entire family should be invalidated
-        // Verify all tokens can be queried from same family
+        // If any token is detected as compromised, all tokens for mailbox should be invalidated
+        // Verify all tokens can be queried for this mailbox
         $stmt = $this->db->prepare(
-            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE family_id = ? AND mailbox = ?'
+            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE mailbox = ?'
         );
-        $stmt->execute([$familyId, $testMailbox]);
+        $stmt->execute([$testMailbox]);
         $result = $stmt->fetch();
 
-        $this->assertEquals(3, $result['cnt'], 'All 3 tokens should be in the same family');
+        $this->assertEquals(3, $result['cnt'], 'All 3 tokens should exist for mailbox');
 
-        // Now revoke entire family (simulating compromise detection)
+        // Now revoke all tokens for mailbox (simulating compromise detection)
         $revokedAt = date('Y-m-d H:i:s');
         $stmt = $this->db->prepare(
-            'UPDATE pfme_refresh_tokens SET revoked_at = ? WHERE family_id = ? AND mailbox = ?'
+            'UPDATE pfme_refresh_tokens SET revoked_at = ? WHERE mailbox = ?'
         );
-        $stmt->execute([$revokedAt, $familyId, $testMailbox]);
+        $stmt->execute([$revokedAt, $testMailbox]);
 
-        // Verify all tokens in family are now revoked
+        // Verify all tokens for mailbox are now revoked
         $stmt = $this->db->prepare(
-            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE family_id = ? AND mailbox = ? AND revoked_at IS NOT NULL'
+            'SELECT COUNT(*) as cnt FROM pfme_refresh_tokens WHERE mailbox = ? AND revoked_at IS NOT NULL'
         );
-        $stmt->execute([$familyId, $testMailbox]);
+        $stmt->execute([$testMailbox]);
         $result = $stmt->fetch();
 
-        $this->assertEquals(3, $result['cnt'], 'All tokens in family should be revoked');
+        $this->assertEquals(3, $result['cnt'], 'All tokens for mailbox should be revoked');
     }
 
     /**
@@ -309,17 +300,16 @@ class AuthorizationFailureTest extends TestCase
 
         // Simulate logout: mark all refresh tokens as revoked
         $stmt = $this->db->prepare(
-            'INSERT INTO pfme_refresh_tokens (mailbox, token, jti, expires_at, rotated_at, family_id, revoked_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO pfme_refresh_tokens (mailbox, token, expires_at, created_at, revoked_at)
+             VALUES (?, ?, ?, ?, ?)'
         );
 
         $token = hash('sha256', 'logout_token_' . microtime());
-        $jti = hash('sha256', 'logout_jti_' . microtime());
         $expiresAt = date('Y-m-d H:i:s', strtotime('+5 years'));
-        $familyId = 'family_' . bin2hex(random_bytes(16));
+        $createdAt = date('Y-m-d H:i:s');
         $revokedAt = date('Y-m-d H:i:s'); // Just logged out
 
-        $stmt->execute([$testMailbox, $token, $jti, $expiresAt, null, $familyId, $revokedAt]);
+        $stmt->execute([$testMailbox, $token, $expiresAt, $createdAt, $revokedAt]);
 
         // Attempt to use revoked token should fail
         $stmt = $this->db->prepare(

@@ -24,29 +24,14 @@ The PostfixMe API provides a secure JSON REST interface that allows mobile appli
 
 ## Installation
 
-1. Install dependencies:
+The PostfixMe API is deployed via Docker. All dependency installation, JWT key generation, and configuration is handled by the Docker build and deployment process.
 
-   ```bash
-   cd /path/to/pfme/api
-   composer install --no-dev --optimize-autoloader
-   ```
+For JWT key management and Docker secret configuration, see the project root deployment scripts:
 
-2. Generate JWT keys:
+- [deploy.sh](../../deploy.sh) - Main deployment orchestration
+- [docker/secrets/](../../docker/secrets/) - Docker secret files location
 
-   ```bash
-   # Generate private key
-   openssl genrsa -out pfme_jwt_private.pem 2048
-
-   # Generate public key
-   openssl rsa -in pfme_jwt_private.pem -pubout -out pfme_jwt_public.pem
-   ```
-
-3. Place keys in Docker secrets:
-
-   ```bash
-   cp pfme_jwt_private.pem docker/secrets/pfme_jwt_private_key
-   cp pfme_jwt_public.pem docker/secrets/pfme_jwt_public_key
-   ```
+Manual installation outside of Docker is not supported.
 
 ## Configuration
 
@@ -300,20 +285,25 @@ Common error codes:
 
 ### Running Tests
 
+Tests must be run within the dedicated test Docker container:
+
 ```bash
-composer test
+# Run all unit tests in QA environment
+./compose.sh --stage qa up pfme-api-tests
 ```
+
+The test container runs PHPUnit against `tests/Unit/` with all dev dependencies available. See [docker/pfme-php-api-tests/README.md](../../docker/pfme-php-api-tests/README.md) for details.
 
 ### Static Analysis
 
-```bash
-composer phpstan
-```
-
-### Code Style
+Static analysis tools are available inside the test container:
 
 ```bash
-composer phpcs
+# Run PHPStan
+docker exec -it <container-name>-pfme-api-tests ./vendor/bin/phpstan analyze
+
+# Run PHPCS
+docker exec -it <container-name>-pfme-api-tests ./vendor/bin/phpcs
 ```
 
 ## Database Schema
