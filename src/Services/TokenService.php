@@ -127,16 +127,27 @@ class TokenService
             throw new \Exception('Invalid or expired refresh token');
         }
 
-        // SEC-032 mitigation: Detect token reuse - if token was already rotated, it indicates theft
+        // SEC-032 mitigation: Detect token reuse - if token was already rotated, it may indicate theft
+        // BUT: Allow reuse within grace period (legitimate after app restart/rebuild)
         if (!empty($oldTokenData['rotated_at'])) {
-            // Token reuse detected - revoke entire family to prevent further use
-            $familyId = $oldTokenData['family_id'] ?: $oldTokenHash;
-            $this->revokeTokenFamily($familyId);
+            $rotatedAtTime = strtotime($oldTokenData['rotated_at']);
+            $gracePeriod = $this->config['jwt']['refresh_token_grace_period'];
+            $graceEndTime = $rotatedAtTime + $gracePeriod;
+            $currentTime = time();
 
-            // Log security event
-            error_log("Security Alert: Refresh token reuse detected for mailbox {$mailbox}. Family {$familyId} revoked.");
+            // Only revoke if using old token AFTER grace period expires
+            // (within grace period is legitimate for app restarts/rebuilds)
+            if ($currentTime > $graceEndTime) {
+                // Token reuse detected OUTSIDE grace period - indicates actual theft
+                $familyId = $oldTokenData['family_id'] ?: $oldTokenHash;
+                $this->revokeTokenFamily($familyId);
 
-            throw new \Exception('Token reuse detected - possible token theft. All tokens in family have been revoked.');
+                // Log security event
+                error_log("Security Alert: Refresh token reuse detected for mailbox {$mailbox} OUTSIDE grace period. Family {$familyId} revoked. Rotation: {$oldTokenData['rotated_at']}, Grace end: " . date('Y-m-d H:i:s', $graceEndTime));
+
+                throw new \Exception('Token reuse detected - possible token theft. All tokens in family have been revoked.');
+            }
+            // Within grace period - allow rotation to proceed (legitimate restart/rebuild scenario)
         }
 
         // Check if this token is part of a family that's been revoked
