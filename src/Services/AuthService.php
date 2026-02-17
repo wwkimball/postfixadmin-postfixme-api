@@ -122,6 +122,93 @@ class AuthService
         return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
+    private function getTrustedClientIp(): ?string
+    {
+        // Determine the actual client IP address, respecting trusted proxy configuration
+        // If a trusted proxy is configured and the request comes from the trusted CIDR,
+        // extract the client IP from the trusted header (default: X-Forwarded-For)
+        // Otherwise, use REMOTE_ADDR directly
+
+        $trustedCidr = $this->config['security']['trusted_proxy_cidr'] ?? '';
+        $trustedHeader = $this->config['security']['trusted_tls_header'] ?? 'X-Forwarded-Proto';
+
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? null;
+
+        if (empty($remoteAddr)) {
+            return null;
+        }
+
+        // If no trusted proxy is configured, use REMOTE_ADDR directly
+        if (empty($trustedCidr)) {
+            return $remoteAddr;
+        }
+
+        // Check if REMOTE_ADDR is in the trusted CIDR
+        if (!$this->isIpInCidr($remoteAddr, $trustedCidr)) {
+            return $remoteAddr;
+        }
+
+        // Request is from trusted proxy - extract client IP from trusted header
+        // Use X-Forwarded-For by default, or a configured header
+        $forwardedHeader = $_SERVER['HTTP_X_FORWARDED_FOR'] ??
+                          $_SERVER['HTTP_' . str_replace('-', '_', strtoupper($trustedHeader))] ??
+                          null;
+
+        if (!empty($forwardedHeader)) {
+            // X-Forwarded-For can contain multiple IPs (client, proxy1, proxy2, ...)
+            // Per RFC 7239, use the rightmost IP from the trusted proxy
+            $ips = array_map('trim', explode(',', $forwardedHeader));
+            $clientIp = end($ips);
+            if (!empty($clientIp)) {
+                return $clientIp;
+            }
+        }
+
+        // Fallback to REMOTE_ADDR if header extraction fails
+        return $remoteAddr;
+    }
+
+    private function isIpInCidr(string $ip, string $cidr): bool
+    {
+        // Check if IP address falls within given CIDR block(s)
+        // Supports comma-separated CIDR blocks and individual IPs
+
+        if (empty($cidr)) {
+            return false;
+        }
+
+        $cidrs = array_map('trim', explode(',', $cidr));
+
+        foreach ($cidrs as $cidrBlock) {
+            if ($this->checkSingleCidr($ip, $cidrBlock)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function checkSingleCidr(string $ip, string $cidr): bool
+    {
+        // Check if an IP matches a single CIDR block
+        // Supports both CIDR notation (192.168.0.0/24) and individual IPs (192.168.0.1)
+
+        if (strpos($cidr, '/') === false) {
+            // Individual IP - exact match
+            return $ip === $cidr;
+        }
+
+        // CIDR notation - perform bitwise comparison
+        list($subnet, $mask) = explode('/', $cidr);
+
+        $ipLong = ip2long($ip);
+        $subnetLong = ip2long($subnet);
+        $maskLong = -1 << (32 - (int)$mask);
+        $maskLong = $maskLong & 0xffffffff; // Ensure 32-bit unsigned integer
+
+        return ($ipLong & $maskLong) === ($subnetLong & $maskLong);
+    }
+
     private function isRateLimited(string $mailbox): bool
     {
         $window = $this->config['security']['rate_limit_window'];
@@ -185,7 +272,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
@@ -200,7 +287,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
@@ -232,7 +319,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
@@ -247,7 +334,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
@@ -279,7 +366,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
@@ -294,7 +381,7 @@ class AuthService
 
         $stmt->execute([
             $mailbox,
-            $_SERVER['REMOTE_ADDR'] ?? null,
+            $this->getTrustedClientIp(),
             $_SERVER['HTTP_USER_AGENT'] ?? null,
         ]);
     }
