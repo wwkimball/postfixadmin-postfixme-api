@@ -8,7 +8,7 @@
         "ext-pdo": "*",
         "ext-json": "*",
         "ext-openssl": "*",
-        "firebase/php-jwt": "^6.0",
+        "firebase/php-jwt": "^7.0",
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
