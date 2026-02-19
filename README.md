@@ -24,12 +24,12 @@ The PostfixMe API provides a secure JSON REST interface that allows mobile appli
 
 ## Installation
 
-The PostfixMe API is deployed via Docker. All dependency installation, JWT key generation, and configuration is handled by the Docker build and deployment process.
+The PostfixMe API is deployed via Docker. Dependency installation and configuration are handled by the Docker build and deployment process. JWT key generation and secret setup must be completed before deployment.
 
-For JWT key management and Docker secret configuration, see the project root deployment scripts:
+For JWT key management and Docker secret configuration, see:
 
-- [deploy.sh](../../deploy.sh) - Main deployment orchestration
-- [docker/secrets/](../../docker/secrets/) - Docker secret files location
+- [docs/README-JWT.md](../../docs/README-JWT.md) - JWT key generation and secret setup
+- [docs/DEPLOYMENT-PFME.md](../../docs/DEPLOYMENT-PFME.md) - Deployment guide
 
 Manual installation outside of Docker is not supported.
 
@@ -81,6 +81,21 @@ The API uses environment variables for configuration. All secrets follow the `*_
 
 ## API Endpoints
 
+### Health
+
+#### GET /api/v1/health
+
+Basic health check.
+
+**Response (200):**
+
+```json
+{
+  "status": "ok",
+  "timestamp": 1700000000
+}
+```
+
 ### Authentication
 
 #### POST /api/v1/auth/login
@@ -113,7 +128,7 @@ Authenticate with mailbox credentials.
 
 #### POST /api/v1/auth/logout
 
-Revoke current access token (requires authentication).
+Revoke all tokens for the authenticated mailbox (requires authentication).
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -127,11 +142,36 @@ Revoke current access token (requires authentication).
 
 #### POST /api/v1/auth/refresh
 
-Rotate tokens using refresh token (requires authentication).
-
-**Headers:** `Authorization: Bearer <token>`
+Rotate tokens using refresh token (no access token required).
 
 **Request:**
+
+#### GET /api/v1/auth/password-policy
+
+Returns the active password policy requirements.
+
+**Response (200):**
+
+```json
+{
+  "min_length": 10,
+  "require_space": true,
+  "require_grammar_symbol": true,
+  "grammar_symbols": ". , ! ? ; : ' \" - ( ) [ ] { } @ # $ % ^ & *"
+}
+```
+
+#### GET /api/v1/destinations
+
+List available destination mailboxes for the authenticated user.
+
+**Response (200):**
+
+```json
+{
+  "data": ["user@example.com", "admin@example.com"]
+}
+```
 
 ```json
 {
@@ -308,7 +348,7 @@ docker exec -it <container-name>-pfme-api-tests ./vendor/bin/phpcs
 
 ## Database Schema
 
-The API creates three additional tables in the PostfixAdmin database:
+The API creates additional tables in the PostfixAdmin database:
 
 - `pfme_refresh_tokens` - Stores refresh tokens with revocation support
 - `pfme_revoked_tokens` - Tracks revoked access tokens (JTI)
@@ -332,6 +372,7 @@ Schema files are located in `schema/mysql/2026/01/001-pfme-initial.sql` and are 
 PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation). Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.
 
 **Defaults**:
+
 - `PFME_AUTH_LOG_RETENTION_DAYS=90`
 - `PFME_AUTH_LOG_SUMMARY_ENABLED=true`
 - `PFME_AUTH_LOG_SUMMARY_LAG_DAYS=1`
@@ -339,11 +380,13 @@ PostfixMe logs authentication attempts to protect accounts (rate limiting, locko
 - `PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS=365`
 
 **Behavior**:
+
 - **Summary**: Stores only mailbox + daily counts (no IP or user agent).
 - **Retention**: Deletes detailed logs older than the retention window.
 - **Archive (optional)**: Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by its own retention window.
 
 **Compliance guidance** (confirm with your compliance team):
+
 - **GDPR**: No fixed retention; use data minimization (typical 30–90 days detailed logs).
 - **PCI DSS**: 12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
 - **HIPAA**: No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
