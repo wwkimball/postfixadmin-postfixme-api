@@ -18,8 +18,8 @@ class TokenService
     public function __construct()
     {
         $this->config = require __DIR__ . '/../../config/config.php';
-        $this->privateKey = file_get_contents($this->config['jwt']['private_key_file']);
-        $this->publicKey = file_get_contents($this->config['jwt']['public_key_file']);
+        $this->privateKey = $this->loadKeyFromFile($this->config['jwt']['private_key_file'], 'private');
+        $this->publicKey = $this->loadKeyFromFile($this->config['jwt']['public_key_file'], 'public', $this->privateKey);
     }
 
     public function createAccessToken(string $mailbox, string $domain): string
@@ -81,6 +81,74 @@ class TokenService
         } catch (\Exception $e) {
             throw new \Exception('Invalid or expired token: ' . $e->getMessage());
         }
+    }
+
+    private function loadKeyFromFile(string $path, string $type, ?string $fallbackPrivate = null): string
+    {
+        if (!is_file($path)) {
+            throw new \RuntimeException("JWT {$type} key file not found: {$path}");
+        }
+
+        $raw = file_get_contents($path);
+        if ($raw === false) {
+            throw new \RuntimeException("Unable to read JWT {$type} key file: {$path}");
+        }
+
+        $normalized = trim($raw);
+        if ($normalized === '') {
+            throw new \RuntimeException("JWT {$type} key file is empty: {$path}");
+        }
+
+        if (strpos($normalized, '\\n') !== false && strpos($normalized, '-----BEGIN') === false) {
+            $normalized = str_replace('\\n', "\n", $normalized);
+        }
+
+        if (strpos($normalized, '-----BEGIN') === false) {
+            $normalized = $this->wrapPem($normalized, $type);
+        }
+
+        if (!$this->isValidKey($normalized, $type)) {
+            if ($type === 'public' && $fallbackPrivate !== null) {
+                $derived = $this->derivePublicKey($fallbackPrivate);
+                if ($derived !== '' && $this->isValidKey($derived, 'public')) {
+                    return $derived;
+                }
+            }
+
+            throw new \RuntimeException("Invalid {$type} key in file: {$path}");
+        }
+
+        return $normalized;
+    }
+
+    private function wrapPem(string $keyMaterial, string $type): string
+    {
+        $label = $type === 'private' ? 'PRIVATE' : 'PUBLIC';
+        $base64 = preg_replace('/\s+/', '', $keyMaterial);
+
+        return "-----BEGIN {$label} KEY-----\n"
+            . chunk_split($base64, 64, "\n")
+            . "-----END {$label} KEY-----";
+    }
+
+    private function isValidKey(string $key, string $type): bool
+    {
+        $resource = $type === 'private'
+            ? openssl_pkey_get_private($key)
+            : openssl_pkey_get_public($key);
+
+        return $resource !== false;
+    }
+
+    private function derivePublicKey(string $privateKey): string
+    {
+        $resource = openssl_pkey_get_private($privateKey);
+        if ($resource === false) {
+            return '';
+        }
+
+        $details = openssl_pkey_get_details($resource);
+        return $details['key'] ?? '';
     }
 
     public function verifyRefreshToken(string $token): ?array
