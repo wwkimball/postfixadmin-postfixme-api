@@ -65,7 +65,7 @@ class AuthService
         // Use PostfixAdmin's password verification logic
         // Load PostfixAdmin config and functions
         $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
-        
+
         if (!file_exists($postfixadminPath)) {
             error_log("ERROR: PostfixAdmin config not found at: $postfixadminPath");
             return false;
@@ -73,14 +73,14 @@ class AuthService
 
         // Load PostfixAdmin configuration
         require_once($postfixadminPath);
-        
+
         // Load PostfixAdmin functions
         $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
         if (!file_exists($functionsPath)) {
             error_log("ERROR: PostfixAdmin functions.inc.php not found at: $functionsPath");
             return false;
         }
-        
+
         require_once($functionsPath);
 
         // Use PostfixAdmin's pacrypt function for verification
@@ -426,7 +426,7 @@ class AuthService
     {
         // Use PostfixAdmin's password hashing logic
         $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
-        
+
         if (!file_exists($postfixadminPath)) {
             error_log("ERROR: PostfixAdmin config not found, using default hashing");
             return password_hash($newPassword, PASSWORD_DEFAULT);
@@ -434,14 +434,14 @@ class AuthService
 
         // Load PostfixAdmin configuration
         require_once($postfixadminPath);
-        
+
         // Load PostfixAdmin functions
         $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
         if (!file_exists($functionsPath)) {
             error_log("ERROR: PostfixAdmin functions.inc.php not found, using default hashing");
             return password_hash($newPassword, PASSWORD_DEFAULT);
         }
-        
+
         require_once($functionsPath);
 
         // Use PostfixAdmin's pacrypt function for hashing with existing scheme
