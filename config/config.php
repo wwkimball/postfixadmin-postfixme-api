@@ -15,6 +15,10 @@ return [
         'password_file' => getenv('POSTFIXADMIN_DB_PASSWORD_FILE') ?: '/run/secrets/postfixadmin_db_password',
     ],
 
+    'postfixadmin' => [
+        'source_path' => getenv('POSTFIXADMIN_SOURCE_PATH') ?: '/usr/src/postfixadmin',
+    ],
+
     'jwt' => [
         'private_key_file' => getenv('PFME_JWT_PRIVATE_KEY_FILE') ?: '/run/secrets/pfme_jwt_private_key',
         'public_key_file' => getenv('PFME_JWT_PUBLIC_KEY_FILE') ?: '/run/secrets/pfme_jwt_public_key',
@@ -47,9 +51,5 @@ return [
     'pagination' => [
         'default_per_page' => 20,
         'max_per_page' => 100,
-    ],
-
-    'postfixadmin' => [
-        'config_path' => getenv('POSTFIXADMIN_CONFIG_PATH') ?: '/usr/src/postfixadmin/config.local.php',
     ],
 ];

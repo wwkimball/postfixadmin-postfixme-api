@@ -62,35 +62,47 @@ class AuthService
 
     private function verifyPassword(string $plainPassword, string $hashedPassword): bool
     {
-        // Use PostfixAdmin's password verification logic
-        // Load PostfixAdmin config and functions
-        $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
+        $this->loadPostfixAdminAuth();
 
-        if (!file_exists($postfixadminPath)) {
-            error_log("ERROR: PostfixAdmin config not found at: $postfixadminPath");
-            return false;
+        if (function_exists('check_password')) {
+            return (bool) check_password($plainPassword, $hashedPassword);
         }
 
-        // Load PostfixAdmin configuration
-        require_once($postfixadminPath);
-
-        // Load PostfixAdmin functions
-        $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
-        if (!file_exists($functionsPath)) {
-            error_log("ERROR: PostfixAdmin functions.inc.php not found at: $functionsPath");
-            return false;
+        if (function_exists('pacrypt')) {
+            $computed = pacrypt($plainPassword, $hashedPassword);
+            return hash_equals($hashedPassword, $computed);
         }
 
-        require_once($functionsPath);
+        throw new \RuntimeException('PostfixAdmin authentication functions not available.');
+    }
 
-        // Use PostfixAdmin's pacrypt function for verification
-        try {
-            $result = pacrypt($plainPassword, $hashedPassword);
-            return $result === $hashedPassword;
-        } catch (\Exception $e) {
-            error_log("ERROR: Password verification failed: " . $e->getMessage());
-            return false;
+    private function loadPostfixAdminAuth(): void
+    {
+        static $loaded = false;
+        if ($loaded) {
+            return;
         }
+
+        $sourcePath = rtrim($this->config['postfixadmin']['source_path'] ?? '/usr/src/postfixadmin', '/');
+        $configDefault = $sourcePath . '/config.inc.php';
+        $configLocal = $sourcePath . '/config.local.php';
+        $functions = $sourcePath . '/functions.inc.php';
+
+        if (is_file($configDefault)) {
+            require_once $configDefault;
+        }
+
+        if (!is_file($configLocal)) {
+            throw new \RuntimeException("PostfixAdmin config.local.php not found at: {$configLocal}");
+        }
+
+        if (!is_file($functions)) {
+            throw new \RuntimeException("PostfixAdmin functions.inc.php not found at: {$functions}");
+        }
+
+        require_once $configLocal;
+        require_once $functions;
+        $loaded = true;
     }
 
     private function isValidEmail(string $email): bool
@@ -424,33 +436,13 @@ class AuthService
 
     private function hashPasswordForExistingScheme(string $newPassword, string $existingHash): string
     {
-        // Use PostfixAdmin's password hashing logic
-        $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
+        $this->loadPostfixAdminAuth();
 
-        if (!file_exists($postfixadminPath)) {
-            error_log("ERROR: PostfixAdmin config not found, using default hashing");
-            return password_hash($newPassword, PASSWORD_DEFAULT);
+        if (!function_exists('pacrypt')) {
+            throw new \RuntimeException('PostfixAdmin password hash function not available.');
         }
 
-        // Load PostfixAdmin configuration
-        require_once($postfixadminPath);
-
-        // Load PostfixAdmin functions
-        $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
-        if (!file_exists($functionsPath)) {
-            error_log("ERROR: PostfixAdmin functions.inc.php not found, using default hashing");
-            return password_hash($newPassword, PASSWORD_DEFAULT);
-        }
-
-        require_once($functionsPath);
-
-        // Use PostfixAdmin's pacrypt function for hashing with existing scheme
-        try {
-            return pacrypt($newPassword, $existingHash);
-        } catch (\Exception $e) {
-            error_log("ERROR: Password hashing failed: " . $e->getMessage());
-            return password_hash($newPassword, PASSWORD_DEFAULT);
-        }
+        return pacrypt($newPassword);
     }
 
     public function maintainAuthLogs(): void
