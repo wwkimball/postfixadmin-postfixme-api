@@ -50,6 +50,6 @@ return [
     ],
 
     'postfixadmin' => [
-        'config_path' => getenv('POSTFIXADMIN_CONFIG_PATH') ?: '/var/www/html/config.local.php',
+        'config_path' => getenv('POSTFIXADMIN_CONFIG_PATH') ?: '/usr/src/postfixadmin/config.local.php',
     ],
 ];

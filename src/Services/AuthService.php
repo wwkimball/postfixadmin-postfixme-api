@@ -62,59 +62,35 @@ class AuthService
 
     private function verifyPassword(string $plainPassword, string $hashedPassword): bool
     {
-        // PostfixAdmin supports multiple password schemes
-        // Common formats: {SCHEME}hash or just bcrypt/argon2 hash
-
-        // Check for scheme prefix
-        if (preg_match('/^\{([^}]+)\}(.+)$/', $hashedPassword, $matches)) {
-            $scheme = $matches[1];
-            $hash = $matches[2];
-
-            switch (strtoupper($scheme)) {
-                case 'CRYPT':
-                case 'BLF-CRYPT':
-                    return hash_equals($hash, crypt($plainPassword, $hash));
-
-                case 'MD5-CRYPT':
-                    return hash_equals($hash, crypt($plainPassword, $hash));
-
-                case 'SHA256-CRYPT':
-                    return hash_equals($hash, crypt($plainPassword, $hash));
-
-                case 'SHA512-CRYPT':
-                    return hash_equals($hash, crypt($plainPassword, $hash));
-
-                case 'MD5':
-                    return hash_equals($hash, md5($plainPassword));
-
-                case 'SHA256':
-                    return hash_equals($hash, hash('sha256', $plainPassword));
-
-                case 'ARGON2I':
-                case 'ARGON2ID':
-                    return password_verify($plainPassword, $hash);
-
-                case 'PLAIN':
-                case 'CLEARTEXT':
-                    return hash_equals($hash, $plainPassword);
-
-                default:
-                    error_log("Unknown password scheme: {$scheme}");
-                    return false;
-            }
+        // Use PostfixAdmin's password verification logic
+        // Load PostfixAdmin config and functions
+        $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
+        
+        if (!file_exists($postfixadminPath)) {
+            error_log("ERROR: PostfixAdmin config not found at: $postfixadminPath");
+            return false;
         }
 
-        // No scheme prefix - try PHP's password_verify (works for bcrypt, argon2)
-        if (password_verify($plainPassword, $hashedPassword)) {
-            return true;
+        // Load PostfixAdmin configuration
+        require_once($postfixadminPath);
+        
+        // Load PostfixAdmin functions
+        $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
+        if (!file_exists($functionsPath)) {
+            error_log("ERROR: PostfixAdmin functions.inc.php not found at: $functionsPath");
+            return false;
         }
+        
+        require_once($functionsPath);
 
-        // Try crypt
-        if (hash_equals($hashedPassword, crypt($plainPassword, $hashedPassword))) {
-            return true;
+        // Use PostfixAdmin's pacrypt function for verification
+        try {
+            $result = pacrypt($plainPassword, $hashedPassword);
+            return $result === $hashedPassword;
+        } catch (\Exception $e) {
+            error_log("ERROR: Password verification failed: " . $e->getMessage());
+            return false;
         }
-
-        return false;
     }
 
     private function isValidEmail(string $email): bool
@@ -448,40 +424,33 @@ class AuthService
 
     private function hashPasswordForExistingScheme(string $newPassword, string $existingHash): string
     {
-        if (preg_match('/^\{([^}]+)\}(.+)$/', $existingHash, $matches)) {
-            $scheme = strtoupper($matches[1]);
-            $hash = $matches[2];
-
-            switch ($scheme) {
-                case 'CRYPT':
-                case 'BLF-CRYPT':
-                case 'MD5-CRYPT':
-                case 'SHA256-CRYPT':
-                case 'SHA512-CRYPT':
-                    return '{' . $scheme . '}' . crypt($newPassword, $hash);
-
-                case 'MD5':
-                    return '{' . $scheme . '}' . md5($newPassword);
-
-                case 'SHA256':
-                    return '{' . $scheme . '}' . hash('sha256', $newPassword);
-
-                case 'ARGON2I':
-                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_ARGON2I);
-
-                case 'ARGON2ID':
-                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_ARGON2ID);
-
-                case 'PLAIN':
-                case 'CLEARTEXT':
-                    return '{' . $scheme . '}' . $newPassword;
-
-                default:
-                    return '{' . $scheme . '}' . password_hash($newPassword, PASSWORD_DEFAULT);
-            }
+        // Use PostfixAdmin's password hashing logic
+        $postfixadminPath = $this->config['postfixadmin']['config_path'] ?? '/var/www/html/config.local.php';
+        
+        if (!file_exists($postfixadminPath)) {
+            error_log("ERROR: PostfixAdmin config not found, using default hashing");
+            return password_hash($newPassword, PASSWORD_DEFAULT);
         }
 
-        return password_hash($newPassword, PASSWORD_DEFAULT);
+        // Load PostfixAdmin configuration
+        require_once($postfixadminPath);
+        
+        // Load PostfixAdmin functions
+        $functionsPath = dirname($postfixadminPath) . '/functions.inc.php';
+        if (!file_exists($functionsPath)) {
+            error_log("ERROR: PostfixAdmin functions.inc.php not found, using default hashing");
+            return password_hash($newPassword, PASSWORD_DEFAULT);
+        }
+        
+        require_once($functionsPath);
+
+        // Use PostfixAdmin's pacrypt function for hashing with existing scheme
+        try {
+            return pacrypt($newPassword, $existingHash);
+        } catch (\Exception $e) {
+            error_log("ERROR: Password hashing failed: " . $e->getMessage());
+            return password_hash($newPassword, PASSWORD_DEFAULT);
+        }
     }
 
     public function maintainAuthLogs(): void
