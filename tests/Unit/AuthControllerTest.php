@@ -284,15 +284,16 @@ class AuthControllerTest extends TestCase
     }
 
     /**
-     * Test password policy is public endpoint
+     * Test password policy endpoint exists as public method
      */
     public function testPasswordPolicyIsPublicEndpoint(): void
     {
         $reflection = new \ReflectionClass($this->controller);
-        $source = file_get_contents($reflection->getFileName());
 
-        // Should document that it's public (no auth required)
-        $this->assertStringContainsString('password_policy', $source);
+        // The passwordPolicy method should exist and be public
+        $this->assertTrue($reflection->hasMethod('passwordPolicy'));
+        $method = $reflection->getMethod('passwordPolicy');
+        $this->assertTrue($method->isPublic());
     }
 
     /**
