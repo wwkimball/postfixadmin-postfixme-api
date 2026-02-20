@@ -21,7 +21,7 @@ class TokenServiceTest extends TestCase
     {
         // Clean up test data
         $this->db->exec('DELETE FROM pfme_refresh_tokens WHERE mailbox LIKE "token-test%"');
-        $this->db->exec('DELETE FROM pfme_token_revocations WHERE jti LIKE "test-%"');
+        $this->db->exec('DELETE FROM pfme_revoked_tokens WHERE jti LIKE "test-%"');
     }
 
     /**
@@ -120,7 +120,7 @@ class TokenServiceTest extends TestCase
 
         $this->assertIsArray($newTokenData);
         $this->assertArrayHasKey('token', $newTokenData);
-        $this->assertNotEqual($originalToken, $newTokenData['token']);
+        $this->assertNotEquals($originalToken, $newTokenData['token']);
     }
 
     /**
@@ -160,7 +160,7 @@ class TokenServiceTest extends TestCase
         $jti = $payload->jti;
 
         // Revoke the token
-        $this->tokenService->revokeToken($jti);
+        $this->tokenService->revokeAccessToken($jti);
 
         // Verify it's revoked by trying to use it
         $this->expectException(\Exception::class);
