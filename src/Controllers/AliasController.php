@@ -25,6 +25,10 @@ class AliasController extends BaseController
         $user = $this->getAuthenticatedUser();
         $params = $this->getQueryParams();
 
+        $sort = $params['sort'] ?? 'address';
+        $order = $params['order'] ?? null;
+        $status = $params['status'] ?? null;
+
         $page = max(1, (int)($params['page'] ?? 1));
         $perPage = min(
             $this->config['pagination']['max_per_page'],
@@ -34,10 +38,11 @@ class AliasController extends BaseController
         $result = $this->aliasService->getAliasesForMailbox(
             $user['mailbox'],
             $params['q'] ?? null,
-            $params['status'] ?? null,
+            $sort,
+            $order,
             $page,
             $perPage,
-            $params['sort'] ?? 'address'
+            $status
         );
 
         $this->success($this->paginate($result['data'], $result['total']));

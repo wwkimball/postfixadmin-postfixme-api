@@ -12,10 +12,11 @@ class AliasService
     public function getAliasesForMailbox(
         string $mailbox,
         ?string $query = null,
-        ?string $status = null,
+        string $sort = 'address',
+        ?string $order = null,
         int $page = 1,
         int $perPage = 20,
-        string $sort = 'address'
+        ?string $status = null
     ): array {
         $db = Database::getConnection();
 
@@ -39,7 +40,8 @@ class AliasService
 
         // Fetch all matching aliases (LIKE gives superset, we'll filter precisely in PHP)
         $orderBy = $this->getSortColumn($sort);
-        $sql = "SELECT * FROM alias a WHERE {$whereClause} ORDER BY {$orderBy}";
+        $orderDir = $this->getSortDirection($order, $sort);
+        $sql = "SELECT * FROM alias a WHERE {$whereClause} ORDER BY {$orderBy} {$orderDir}";
 
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
@@ -55,6 +57,8 @@ class AliasService
         $total = count($authorizedAliases);
 
         // Apply pagination to filtered results
+        $page = max(1, (int)$page);
+        $perPage = max(1, (int)$perPage);
         $offset = ($page - 1) * $perPage;
         $paginatedAliases = array_slice($authorizedAliases, $offset, $perPage);
 
@@ -267,12 +271,28 @@ class AliasService
     {
         // SECURITY: Only allow explicit whitelist values in ORDER BY to prevent SQL injection.
         $validSorts = [
-            'address' => 'a.address ASC',
-            'created' => 'a.created DESC',
-            'modified' => 'a.modified DESC',
+            'address' => 'a.address',
+            'created' => 'a.created',
+            'modified' => 'a.modified',
         ];
 
-        return $validSorts[$sort] ?? 'a.address ASC';
+        return $validSorts[$sort] ?? 'a.address';
+    }
+
+    private function getSortDirection(?string $order, string $sort): string
+    {
+        $normalized = strtolower((string)$order);
+
+        if ('asc' === $normalized || 'desc' === $normalized) {
+            return strtoupper($normalized);
+        }
+
+        // Default to descending for date-based fields and ascending otherwise.
+        if ('created' === $sort || 'modified' === $sort) {
+            return 'DESC';
+        }
+
+        return 'ASC';
     }
 
     public function getAvailableMailboxes(string $domain, string $query = null): array

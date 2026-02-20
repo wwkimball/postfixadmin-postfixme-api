@@ -364,8 +364,8 @@ class AliasServiceSecurityTest extends TestCase
 
         $beforeTables = [];
         $stmt = $this->db->query("SHOW TABLES");
-        while ($row = $stmt->fetch()) {
-            $beforeTables[] = $row[0];
+        while (($tableName = $stmt->fetchColumn()) !== false) {
+            $beforeTables[] = $tableName;
         }
 
         // Try various injection attacks
@@ -394,8 +394,8 @@ class AliasServiceSecurityTest extends TestCase
         // Verify all tables still exist
         $afterTables = [];
         $stmt = $this->db->query("SHOW TABLES");
-        while ($row = $stmt->fetch()) {
-            $afterTables[] = $row[0];
+        while (($tableName = $stmt->fetchColumn()) !== false) {
+            $afterTables[] = $tableName;
         }
 
         $this->assertEquals(

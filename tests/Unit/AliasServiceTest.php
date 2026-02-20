@@ -20,9 +20,9 @@ class AliasServiceTest extends TestCase
         $method = $reflection->getMethod('getSortColumn');
         $method->setAccessible(true);
 
-        $this->assertEquals('a.address ASC', $method->invoke($this->aliasService, 'address'));
-        $this->assertEquals('a.created DESC', $method->invoke($this->aliasService, 'created'));
-        $this->assertEquals('a.modified DESC', $method->invoke($this->aliasService, 'modified'));
+        $this->assertEquals('a.address', $method->invoke($this->aliasService, 'address'));
+        $this->assertEquals('a.created', $method->invoke($this->aliasService, 'created'));
+        $this->assertEquals('a.modified', $method->invoke($this->aliasService, 'modified'));
     }
 
     public function testGetSortColumnFallsBackToDefault(): void
@@ -31,7 +31,28 @@ class AliasServiceTest extends TestCase
         $method = $reflection->getMethod('getSortColumn');
         $method->setAccessible(true);
 
-        $this->assertEquals('a.address ASC', $method->invoke($this->aliasService, 'invalid-sort'));
+        $this->assertEquals('a.address', $method->invoke($this->aliasService, 'invalid-sort'));
+    }
+
+    public function testGetSortDirectionNormalizesValidValues(): void
+    {
+        $reflection = new \ReflectionClass($this->aliasService);
+        $method = $reflection->getMethod('getSortDirection');
+        $method->setAccessible(true);
+
+        $this->assertEquals('ASC', $method->invoke($this->aliasService, 'asc', 'address'));
+        $this->assertEquals('DESC', $method->invoke($this->aliasService, 'DESC', 'created'));
+    }
+
+    public function testGetSortDirectionFallsBackToDefaults(): void
+    {
+        $reflection = new \ReflectionClass($this->aliasService);
+        $method = $reflection->getMethod('getSortDirection');
+        $method->setAccessible(true);
+
+        // Malicious or empty input should default safely
+        $this->assertEquals('ASC', $method->invoke($this->aliasService, "DROP TABLE", 'address'));
+        $this->assertEquals('DESC', $method->invoke($this->aliasService, null, 'created'));
     }
 
     // SEC-026: Authorization bypass prevention tests
