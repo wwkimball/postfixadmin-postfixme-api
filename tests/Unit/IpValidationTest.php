@@ -7,7 +7,7 @@ use Pfme\Api\Services\AuthService;
 
 /**
  * Unit tests for IP address validation and CIDR matching
- * 
+ *
  * Tests getTrustedClientIp() and isIpInCidr() functionality
  */
 class IpValidationTest extends TestCase
@@ -39,11 +39,11 @@ class IpValidationTest extends TestCase
                 'isIpInCidr',
                 [$case['ip'], $case['cidr']]
             );
-            
+
             $this->assertEquals(
                 $case['expected'],
                 $result,
-                "IP {$case['ip']} should " . ($case['expected'] ? '' : 'not ') . 
+                "IP {$case['ip']} should " . ($case['expected'] ? '' : 'not ') .
                 "match CIDR {$case['cidr']}"
             );
         }
@@ -75,7 +75,7 @@ class IpValidationTest extends TestCase
     public function testMatchAllCIDR(): void
     {
         $ips = ['1.2.3.4', '192.168.1.1', '10.0.0.1', '255.255.255.255'];
-        
+
         foreach ($ips as $ip) {
             $result = $this->invokePrivateMethod(
                 $this->authService,
@@ -92,13 +92,13 @@ class IpValidationTest extends TestCase
     public function testMultipleCIDRRanges(): void
     {
         $cidrList = '192.168.1.0/24,10.0.0.0/8,172.16.0.0/12';
-        
+
         $matchingIPs = [
             '192.168.1.50',  // First range
             '10.5.10.20',    // Second range
             '172.20.5.100',  // Third range
         ];
-        
+
         foreach ($matchingIPs as $ip) {
             $result = $this->invokePrivateMethod(
                 $this->authService,
@@ -107,7 +107,7 @@ class IpValidationTest extends TestCase
             );
             $this->assertTrue($result, "IP $ip should match one of the CIDR ranges");
         }
-        
+
         // Non-matching IP
         $result = $this->invokePrivateMethod(
             $this->authService,
@@ -254,7 +254,7 @@ class IpValidationTest extends TestCase
             'isIpInCidr',
             ['2001:db8::1', '2001:db8::/32']
         );
-        
+
         // Should either match (if IPv6 supported) or return false safely
         $this->assertIsBool($result, 'Should handle IPv6 addresses');
     }
@@ -285,7 +285,7 @@ class IpValidationTest extends TestCase
     public function testGetTrustedClientIpReturnsValidFormat(): void
     {
         $ip = $this->invokePrivateMethod($this->authService, 'getTrustedClientIp');
-        
+
         // Should return null or valid IP string
         if ($ip !== null) {
             $this->assertIsString($ip, 'Client IP should be string');
@@ -306,7 +306,7 @@ class IpValidationTest extends TestCase
     public function testCIDRListWhitespaceHandling(): void
     {
         $cidrWithSpaces = ' 192.168.1.0/24 , 10.0.0.0/8 , 172.16.0.0/12 ';
-        
+
         $result = $this->invokePrivateMethod(
             $this->authService,
             'isIpInCidr',

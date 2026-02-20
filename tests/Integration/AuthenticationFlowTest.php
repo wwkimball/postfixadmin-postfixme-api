@@ -9,7 +9,7 @@ use Pfme\Api\Core\Database;
 
 /**
  * Integration test for full authentication workflow
- * 
+ *
  * Tests complete flow: login -> access token -> refresh -> change password -> logout
  * Uses pre-seeded test data from test-data/seeds directory
  */
@@ -18,7 +18,7 @@ class AuthenticationFlowTest extends TestCase
     private AuthService $authService;
     private TokenService $tokenService;
     private \PDO $db;
-    
+
     // Test credentials from seed data
     private string $testMailbox = 'user1@acme.local';
     private string $testPassword = 'testpass123';
@@ -29,7 +29,7 @@ class AuthenticationFlowTest extends TestCase
         $this->authService = new AuthService();
         $this->tokenService = new TokenService();
         $this->db = Database::getConnection();
-        
+
         // Clean up any test tokens
         $this->cleanupTestTokens();
     }
@@ -43,7 +43,7 @@ class AuthenticationFlowTest extends TestCase
     {
         $stmt = $this->db->prepare('DELETE FROM pfme_refresh_tokens WHERE mailbox = ?');
         $stmt->execute([$this->testMailbox]);
-        
+
         $stmt = $this->db->prepare('DELETE FROM pfme_revoked_tokens');
         $stmt->execute();
     }
@@ -61,11 +61,11 @@ class AuthenticationFlowTest extends TestCase
         // Step 2: Create access and refresh tokens after successful auth
         $accessToken = $this->tokenService->createAccessToken($this->testMailbox, $this->testDomain);
         $this->assertNotEmpty($accessToken, 'Should create access token');
-        
+
         $refreshTokenData = $this->tokenService->createRefreshToken($this->testMailbox);
         $this->assertArrayHasKey('token', $refreshTokenData, 'Should create refresh token');
         $this->assertArrayHasKey('expires_at', $refreshTokenData, 'Refresh token should have expiry');
-        
+
         $refreshToken = $refreshTokenData['token'];
 
         // Step 3: Verify access token is valid
@@ -154,15 +154,15 @@ class AuthenticationFlowTest extends TestCase
         $newPassword = 'New Secure Pass 123!';
         try {
             $this->authService->changeMailboxPassword($this->testMailbox, $this->testPassword, $newPassword);
-            
+
             // Verify old password no longer works
             $oldPasswordAuth = $this->authService->authenticateMailbox($this->testMailbox, $this->testPassword);
             $this->assertFalse($oldPasswordAuth, 'Old password should not work after change');
-            
+
             // Verify new password works
             $newPasswordAuth = $this->authService->authenticateMailbox($this->testMailbox, $newPassword);
             $this->assertTrue($newPasswordAuth, 'New password should work after change');
-            
+
             // Change back to original password for cleanup
             $this->authService->changeMailboxPassword($this->testMailbox, $newPassword, $this->testPassword);
         } catch (\Exception $e) {

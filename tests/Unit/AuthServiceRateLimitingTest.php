@@ -8,7 +8,7 @@ use Pfme\Api\Core\Database;
 
 /**
  * Unit tests for AuthService rate limiting and lockout functionality
- * 
+ *
  * Tests SEC-033 (Rate Limiting) and SEC-034 (Account Lockout) mitigations
  */
 class AuthServiceRateLimitingTest extends TestCase
@@ -21,7 +21,7 @@ class AuthServiceRateLimitingTest extends TestCase
     {
         $this->authService = new AuthService();
         $this->db = Database::getConnection();
-        
+
         // Clean up any existing test data
         $this->cleanupTestData();
     }

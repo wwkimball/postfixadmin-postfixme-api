@@ -12,7 +12,7 @@ use Pfme\Api\Core\Application;
 
 /**
  * Integration tests for middleware stack execution
- * 
+ *
  * Tests that middleware components work together correctly
  * and execute in proper order
  */
@@ -85,13 +85,13 @@ class MiddlewareIntegrationTest extends TestCase
     public function testApplicationCanRegisterMiddleware(): void
     {
         $app = new Application();
-        
+
         // Should not throw exception
         $app->use(new TlsMiddleware());
         $app->use(new CorsMiddleware());
         $app->use(new JsonMiddleware());
         $app->use(new SecurityHeadersMiddleware());
-        
+
         $this->assertTrue(true, 'Application should register middleware without errors');
     }
 
@@ -102,9 +102,9 @@ class MiddlewareIntegrationTest extends TestCase
     {
         $_SERVER['HTTPS'] = 'on';
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        
+
         $middleware = new TlsMiddleware();
-        
+
         // Should not throw exception for HTTPS request
         try {
             ob_start();
@@ -124,9 +124,9 @@ class MiddlewareIntegrationTest extends TestCase
     public function testCorsMiddlewareHandlesOptions(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'OPTIONS';
-        
+
         $middleware = new CorsMiddleware();
-        
+
         ob_start();
         try {
             $middleware->handle();
@@ -134,7 +134,7 @@ class MiddlewareIntegrationTest extends TestCase
             // OPTIONS may exit early
         }
         $output = ob_get_clean();
-        
+
         $this->assertTrue(true, 'CORS middleware should handle OPTIONS requests');
     }
 
@@ -144,11 +144,11 @@ class MiddlewareIntegrationTest extends TestCase
     public function testJsonMiddlewareSetsContentType(): void
     {
         $middleware = new JsonMiddleware();
-        
+
         ob_start();
         $middleware->handle();
         ob_end_clean();
-        
+
         // In test environment, we can't verify actual headers
         // But we can verify the middleware doesn't crash
         $this->assertTrue(true, 'JSON middleware should execute without errors');
@@ -160,13 +160,13 @@ class MiddlewareIntegrationTest extends TestCase
     public function testSecurityHeadersMiddlewareExecutes(): void
     {
         $_SERVER['HTTPS'] = 'on';
-        
+
         $middleware = new SecurityHeadersMiddleware();
-        
+
         ob_start();
         $middleware->handle();
         ob_end_clean();
-        
+
         $this->assertTrue(true, 'Security headers middleware should execute');
     }
 
@@ -177,14 +177,14 @@ class MiddlewareIntegrationTest extends TestCase
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         unset($_SERVER['HTTP_AUTHORIZATION']);
-        
+
         $middleware = new AuthMiddleware();
-        
+
         ob_start();
         try {
             $middleware->handle();
             $output = ob_get_clean();
-            
+
             // Should have returned error response
             $this->assertNotEmpty($output, 'Should return error response');
         } catch (\Exception $e) {
@@ -201,14 +201,14 @@ class MiddlewareIntegrationTest extends TestCase
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
         $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer invalid.token.here';
-        
+
         $middleware = new AuthMiddleware();
-        
+
         ob_start();
         try {
             $middleware->handle();
             $output = ob_get_clean();
-            
+
             // Should have returned error response
             $this->assertNotEmpty($output, 'Should return error response for invalid token');
         } catch (\Exception $e) {
@@ -223,13 +223,13 @@ class MiddlewareIntegrationTest extends TestCase
     public function testMiddlewareExecutionOrder(): void
     {
         $app = new Application();
-        
+
         // Register in correct order
         $app->use(new TlsMiddleware());
         $app->use(new CorsMiddleware());
         $app->use(new JsonMiddleware());
         $app->use(new SecurityHeadersMiddleware());
-        
+
         $this->assertTrue(true, 'Middleware should register in order');
     }
 
@@ -249,7 +249,7 @@ class MiddlewareIntegrationTest extends TestCase
     {
         $app = new Application();
         $config = $app->getConfig();
-        
+
         $this->assertIsArray($config, 'Config should be array');
     }
 
@@ -265,7 +265,7 @@ class MiddlewareIntegrationTest extends TestCase
             new SecurityHeadersMiddleware(),
             new AuthMiddleware(),
         ];
-        
+
         foreach ($middlewares as $middleware) {
             $this->assertTrue(
                 method_exists($middleware, 'handle'),
@@ -281,9 +281,9 @@ class MiddlewareIntegrationTest extends TestCase
     {
         $_SERVER['HTTP_X_FORWARDED_PROTO'] = 'https';
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        
+
         $middleware = new TlsMiddleware();
-        
+
         ob_start();
         try {
             $middleware->handle();
@@ -301,12 +301,12 @@ class MiddlewareIntegrationTest extends TestCase
     public function testCorsAllowsHttpMethods(): void
     {
         $methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
-        
+
         foreach ($methods as $method) {
             $_SERVER['REQUEST_METHOD'] = $method;
-            
+
             $middleware = new CorsMiddleware();
-            
+
             ob_start();
             try {
                 $middleware->handle();
@@ -315,7 +315,7 @@ class MiddlewareIntegrationTest extends TestCase
             }
             ob_end_clean();
         }
-        
+
         $this->assertTrue(true, 'CORS should handle all HTTP methods');
     }
 
@@ -328,13 +328,13 @@ class MiddlewareIntegrationTest extends TestCase
         $_SERVER['DB_PASSWORD'] = 'supersecret';
         $_SERVER['JWT_KEY'] = 'verysecret';
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        
+
         $middleware = new SecurityHeadersMiddleware();
-        
+
         ob_start();
         $middleware->handle();
         $output = ob_get_clean();
-        
+
         // Output should not contain sensitive info
         $this->assertStringNotContainsString('supersecret', $output, 'Should not leak DB password');
         $this->assertStringNotContainsString('verysecret', $output, 'Should not leak JWT key');
@@ -346,9 +346,9 @@ class MiddlewareIntegrationTest extends TestCase
     public function testMiddlewareHandlesMissingRequestMethod(): void
     {
         unset($_SERVER['REQUEST_METHOD']);
-        
+
         $middleware = new JsonMiddleware();
-        
+
         ob_start();
         try {
             $middleware->handle();

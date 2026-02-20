@@ -8,7 +8,7 @@ use Pfme\Api\Core\Database;
 
 /**
  * Unit tests for authentication log maintenance functionality
- * 
+ *
  * Tests log aggregation, archiving, and cleanup operations
  */
 class AuthLogMaintenanceAdvancedTest extends TestCase
@@ -20,7 +20,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     {
         $this->authService = new AuthService();
         $this->db = Database::getConnection();
-        
+
         // Clean up test data
         $this->cleanupTestData();
     }
@@ -53,7 +53,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testOldAuthLogsAreAggregated(): void
     {
         $testMailbox = 'test-maintenance-agg@acme.local';
-        
+
         // Insert old auth log entries (31 days old)
         for ($i = 0; $i < 5; $i++) {
             $stmt = $this->db->prepare(
@@ -75,7 +75,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
         if ($summary) {
             $this->assertEquals($testMailbox, $summary['mailbox'], 'Summary should be for correct mailbox');
         }
-        
+
         $this->assertTrue(true, 'Aggregation completed without errors');
     }
 
@@ -85,7 +85,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testOldAuthLogsAreArchived(): void
     {
         $testMailbox = 'test-maintenance-archive@acme.local';
-        
+
         // Insert very old auth log entries (100 days old)
         $stmt = $this->db->prepare(
             'INSERT INTO pfme_auth_log (mailbox, success, ip_address, attempted_at)
@@ -110,7 +110,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testVeryOldArchivedLogsAreCleaned(): void
     {
         $testMailbox = 'test-maintenance-cleanup@acme.local';
-        
+
         // Insert very old archived entries (400 days old)
         $stmt = $this->db->prepare(
             'INSERT INTO pfme_auth_log_archive (mailbox, success, ip_address, attempted_at, archived_at)
@@ -141,7 +141,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testRecentAuthLogsAreNotDeleted(): void
     {
         $testMailbox = 'test-maintenance-recent@acme.local';
-        
+
         // Insert recent auth log entry (1 day old)
         $stmt = $this->db->prepare(
             'INSERT INTO pfme_auth_log (mailbox, success, ip_address, attempted_at)
@@ -166,7 +166,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testSummaryAggregatesCorrectCounts(): void
     {
         $testMailbox = 'test-maintenance-counts@acme.local';
-        
+
         // Insert mix of success and failure events (35 days old to trigger aggregation)
         for ($i = 0; $i < 3; $i++) {
             $stmt = $this->db->prepare(
@@ -207,7 +207,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testMaintenanceWithLargeDataset(): void
     {
         $testMailbox = 'test-maintenance-large@acme.local';
-        
+
         // Insert 100 log entries
         $stmt = $this->db->prepare(
             'INSERT INTO pfme_auth_log (mailbox, success, ip_address, attempted_at)
@@ -221,10 +221,10 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
         }
 
         $startTime = microtime(true);
-        
+
         // Run maintenance
         $this->authService->maintainAuthLogs();
-        
+
         $duration = microtime(true) - $startTime;
 
         // Maintenance should complete in reasonable time (< 5 seconds)
@@ -237,7 +237,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     public function testMaintenanceIsIdempotent(): void
     {
         $testMailbox = 'test-maintenance-idempotent@acme.local';
-        
+
         // Insert test data
         $stmt = $this->db->prepare(
             'INSERT INTO pfme_auth_log (mailbox, success, ip_address, attempted_at)
@@ -277,7 +277,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     {
         $stmt = $this->db->query("SHOW TABLES LIKE 'pfme_auth_log'");
         $exists = $stmt->fetch();
-        
+
         $this->assertNotFalse($exists, 'pfme_auth_log table should exist');
     }
 
@@ -288,7 +288,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     {
         $stmt = $this->db->query("SHOW TABLES LIKE 'pfme_auth_log_summary'");
         $exists = $stmt->fetch();
-        
+
         $this->assertNotFalse($exists, 'pfme_auth_log_summary table should exist');
     }
 
@@ -299,7 +299,7 @@ class AuthLogMaintenanceAdvancedTest extends TestCase
     {
         $stmt = $this->db->query("SHOW TABLES LIKE 'pfme_auth_log_archive'");
         $exists = $stmt->fetch();
-        
+
         $this->assertNotFalse($exists, 'pfme_auth_log_archive table should exist');
     }
 }

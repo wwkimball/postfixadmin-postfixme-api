@@ -8,7 +8,7 @@ use Pfme\Api\Core\Database;
 
 /**
  * Integration tests for SQL injection protection in AliasService
- * 
+ *
  * Tests that user input is properly sanitized and parameterized
  * Uses pre-seeded test data from test-data/seeds directory
  */
@@ -16,7 +16,7 @@ class AliasServiceSecurityTest extends TestCase
 {
     private AliasService $aliasService;
     private \PDO $db;
-    
+
     // Test credentials from seed data
     private string $testMailbox = 'user1@acme.local';
     private string $testDomain = 'acme.local';
@@ -52,16 +52,16 @@ class AliasServiceSecurityTest extends TestCase
                     20,
                     null
                 );
-                
+
                 // Should return safe results, not execute SQL injection
                 $this->assertIsArray($result, 'Should return array result');
                 $this->assertArrayHasKey('data', $result, 'Should have data key');
-                
+
                 // Verify alias table still exists (not dropped)
                 $stmt = $this->db->query("SHOW TABLES LIKE 'alias'");
                 $tableExists = $stmt->fetch();
                 $this->assertNotFalse($tableExists, 'Alias table should still exist');
-                
+
             } catch (\Exception $e) {
                 // Exception is acceptable - indicates input was rejected
                 $this->assertIsString($e->getMessage(), 'Exception should have message');
@@ -91,10 +91,10 @@ class AliasServiceSecurityTest extends TestCase
                     20,
                     null
                 );
-                
+
                 // Should use default sort or reject, not execute injection
                 $this->assertIsArray($result, 'Should return safe result');
-                
+
             } catch (\Exception $e) {
                 // Safe rejection is acceptable
                 $this->assertIsString($e->getMessage(), 'Exception should occur');
@@ -123,9 +123,9 @@ class AliasServiceSecurityTest extends TestCase
                     20,
                     null
                 );
-                
+
                 $this->assertIsArray($result, 'Should return safe result');
-                
+
             } catch (\Exception $e) {
                 $this->assertIsString($e->getMessage(), 'Safe rejection');
             }
@@ -154,9 +154,9 @@ class AliasServiceSecurityTest extends TestCase
                     20,
                     $maliciousStatus // Malicious status
                 );
-                
+
                 $this->assertIsArray($result, 'Should return safe result');
-                
+
             } catch (\Exception $e) {
                 $this->assertIsString($e->getMessage(), 'Safe rejection');
             }
@@ -176,10 +176,10 @@ class AliasServiceSecurityTest extends TestCase
 
         foreach ($maliciousAddresses as $maliciousAddress) {
             $result = $this->aliasService->getAliasById($maliciousAddress, $this->testMailbox);
-            
+
             // Should return null (not found) not execute injection
             $this->assertNull($result, 'Malicious address should not be found');
-            
+
             // Verify tables still exist
             $stmt = $this->db->query("SHOW TABLES LIKE 'alias'");
             $tableExists = $stmt->fetch();
@@ -205,17 +205,17 @@ class AliasServiceSecurityTest extends TestCase
                     [$this->testMailbox],
                     $this->testMailbox
                 );
-                
+
                 // If creation succeeded, verify it's stored safely
                 if (isset($result['address'])) {
                     $this->assertIsString($result['address'], 'Address should be string');
                 }
-                
+
                 // Clean up if created
                 if (isset($result['address'])) {
                     $this->aliasService->deleteAlias($result['address'], $this->testMailbox);
                 }
-                
+
             } catch (\Exception $e) {
                 // Rejection is acceptable (validation may reject)
                 $this->assertIsString($e->getMessage(), 'Exception handled');
@@ -242,12 +242,12 @@ class AliasServiceSecurityTest extends TestCase
                     $destinations, // Malicious destinations
                     $this->testMailbox
                 );
-                
+
                 // If succeeded, clean up
                 if (isset($result['address'])) {
                     $this->aliasService->deleteAlias($result['address'], $this->testMailbox);
                 }
-                
+
             } catch (\Exception $e) {
                 // Rejection is acceptable
                 $this->assertIsString($e->getMessage(), 'Should handle safely');
@@ -268,14 +268,14 @@ class AliasServiceSecurityTest extends TestCase
                 [$this->testMailbox],
                 $this->testMailbox
             );
-            
+
             if (isset($alias['address'])) {
                 // Try to update with malicious data
                 $maliciousUpdates = [
                     ['local_part' => "evil'; DROP TABLE alias; --"],
                     ['destinations' => ["' OR '1'='1"]],
                 ];
-                
+
                 foreach ($maliciousUpdates as $updates) {
                     try {
                         $this->aliasService->updateAlias(
@@ -288,7 +288,7 @@ class AliasServiceSecurityTest extends TestCase
                         $this->assertIsString($e->getMessage(), 'Update rejected safely');
                     }
                 }
-                
+
                 // Clean up
                 $this->aliasService->deleteAlias($alias['address'], $this->testMailbox);
             }
@@ -310,10 +310,10 @@ class AliasServiceSecurityTest extends TestCase
 
         foreach ($maliciousAddresses as $maliciousAddress) {
             $result = $this->aliasService->deleteAlias($maliciousAddress, $this->testMailbox);
-            
+
             // Should return false (not found/deleted)
             $this->assertFalse($result, 'Should not delete with malicious address');
-            
+
             // Verify table still exists
             $stmt = $this->db->query("SHOW TABLES LIKE 'alias'");
             $tableExists = $stmt->fetch();
@@ -338,15 +338,15 @@ class AliasServiceSecurityTest extends TestCase
                     $this->testDomain,
                     $maliciousQuery // Malicious search query
                 );
-                
+
                 // Should return safe results
                 $this->assertIsArray($result, 'Should return array');
-                
+
                 // Verify mailbox table still exists
                 $stmt = $this->db->query("SHOW TABLES LIKE 'mailbox'");
                 $tableExists = $stmt->fetch();
                 $this->assertNotFalse($tableExists, 'Mailbox table should still exist');
-                
+
             } catch (\Exception $e) {
                 // Safe rejection
                 $this->assertIsString($e->getMessage(), 'Should handle safely');
@@ -361,7 +361,7 @@ class AliasServiceSecurityTest extends TestCase
     {
         // This test verifies that even with malicious input,
         // the database structure remains intact
-        
+
         $beforeTables = [];
         $stmt = $this->db->query("SHOW TABLES");
         while ($row = $stmt->fetch()) {
