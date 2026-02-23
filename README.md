@@ -28,8 +28,8 @@ The PostfixMe API is deployed via Docker. Dependency installation and configurat
 
 For JWT key management and Docker secret configuration, see:
 
-- [docs/README-JWT.md](../../docs/README-JWT.md) - JWT key generation and secret setup
-- [docs/DEPLOYMENT-PFME.md](../../docs/DEPLOYMENT-PFME.md) - Deployment guide
+- [docs/JWT-SETUP.md](docs/JWT-SETUP.md) - JWT key generation and secret setup
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment guide
 
 Manual installation outside of Docker is not supported.
 
@@ -72,6 +72,16 @@ The API uses environment variables for configuration. All secrets follow the `*_
 | `PFME_PASSWORD_MIN_LENGTH` | `10` | Minimum passphrase length (8-64 recommended) |
 | `PFME_PASSWORD_REQUIRE_SPACE` | `true` | Require at least one space in passphrase |
 | `PFME_PASSWORD_REQUIRE_GRAMMAR_SYMBOL` | `true` | Require grammar symbol (. , ! ? ; : ' " - etc.) |
+
+### Auth Log Configuration
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `PFME_AUTH_LOG_RETENTION_DAYS` | `90` | Detailed log retention (days) |
+| `PFME_AUTH_LOG_SUMMARY_ENABLED` | `true` | Enable daily auth summary aggregation |
+| `PFME_AUTH_LOG_SUMMARY_LAG_DAYS` | `1` | Days before aggregating logs into summary |
+| `PFME_AUTH_LOG_ARCHIVE_ENABLED` | `false` | Enable archiving of detailed logs before deletion |
+| `PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS` | `365` | Archive retention (days) |
 
 ### Optional Configuration
 
