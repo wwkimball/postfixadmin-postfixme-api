@@ -349,7 +349,7 @@ The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to m
 
 ## Database Schema
 
-The API creates additional tables in the PostfixAdmin database:
+The API requires additional tables in the PostfixAdmin database:
 
 - `pfme_refresh_tokens` - Stores refresh tokens with revocation support
 - `pfme_revoked_tokens` - Tracks revoked access tokens (JTI)
