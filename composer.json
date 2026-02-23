@@ -2,7 +2,7 @@
     "name": "kimball/pfme-api",
     "description": "PostfixMe API - Mobile-friendly REST API for PostfixAdmin alias management",
     "type": "project",
-    "license": "MIT",
+    "license": "GPL-2.0-or-later",
     "require": {
         "php": "^8.1",
         "ext-pdo": "*",

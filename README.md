@@ -24,14 +24,11 @@ The PostfixMe API provides a secure JSON REST interface that allows mobile appli
 
 ## Installation
 
-The PostfixMe API is deployed via Docker. Dependency installation and configuration are handled by the Docker build and deployment process. JWT key generation and secret setup must be completed before deployment.
+The PostfixMe API is designed for Docker deployment.  Dependency installation and configuration are handled by the Docker build and deployment process.  JWT key generation and secret setup must be completed before deployment.
 
-For JWT key management and Docker secret configuration, see:
+For installation and deployment instructions, refer to your deployment environment's documentation.
 
-- [docs/JWT-SETUP.md](docs/JWT-SETUP.md) - JWT key generation and secret setup
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Deployment guide
-
-Manual installation outside of Docker is not supported.
+Manual installation outside of Docker is not supported, though you are welcome to try.
 
 ## Configuration
 
@@ -87,7 +84,7 @@ The API uses environment variables for configuration. All secrets follow the `*_
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `DEPLOYMENT_STAGE` | `production` | Application environment (development/qa/lab/production) |
+| `DEPLOYMENT_STAGE` | `production` | Application environment (development/qa/lab/staging/production) |
 
 ## API Endpoints
 
@@ -333,28 +330,22 @@ Common error codes:
 
 ## Development
 
-### Running Tests
+### Testing
 
-Tests must be run within the dedicated test Docker container:
+Unit tests are located in `tests/Unit/` and use PHPUnit. The test suite validates API endpoints, authentication logic, database operations, and security controls.
 
-```bash
-# Run all unit tests in QA environment
-./compose.sh --stage qa up pfme-api-tests
-```
+When integrating this API into a Docker-based environment, tests can be run in a dedicated test container with all development dependencies.
 
-The test container runs PHPUnit against `tests/Unit/` with all dev dependencies available. See [docker/pfme-php-api-tests/README.md](../../docker/pfme-php-api-tests/README.md) for details.
+### Code Quality
 
-### Static Analysis
+The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to maintain quality standards. Configure these tools in your development environment as needed.
 
-Static analysis tools are available inside the test container:
+### Development Notes
 
-```bash
-# Run PHPStan
-docker exec -it <container-name>-pfme-api-tests ./vendor/bin/phpstan analyze
-
-# Run PHPCS
-docker exec -it <container-name>-pfme-api-tests ./vendor/bin/phpcs
-```
+- JWT keys must be configured before running the API
+- Database connection requires access to PostfixAdmin's database
+- All endpoints expect and return JSON
+- Rate limiting and account lockout features require persistent storage
 
 ## Database Schema
 
@@ -404,4 +395,8 @@ PostfixMe logs authentication attempts to protect accounts (rate limiting, locko
 
 ## License
 
-See LICENSE file in project root.
+PostfixMe API is free software licensed under the GNU General Public License v2 or later (GPL-2.0-or-later).
+
+Copyright (c) 2026 William Kimball, Jr., MBA, MSIS
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the LICENSE file for full details.
