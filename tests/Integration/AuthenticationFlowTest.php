@@ -18,6 +18,7 @@ class AuthenticationFlowTest extends TestCase
     private AuthService $authService;
     private TokenService $tokenService;
     private \PDO $db;
+    private static bool $postfixAdminAuthLoaded = false;
 
     // Test credentials from seed data
     private string $testMailbox = 'user1@acme.local';
@@ -46,6 +47,52 @@ class AuthenticationFlowTest extends TestCase
 
         $stmt = $this->db->prepare('DELETE FROM pfme_revoked_tokens');
         $stmt->execute();
+
+        // Reset auth attempts for the seeded mailbox to avoid rate limiting/lockout
+        $stmt = $this->db->prepare('DELETE FROM pfme_auth_log WHERE mailbox = ?');
+        $stmt->execute([$this->testMailbox]);
+
+        // Reset mailbox security metadata to avoid unintended token invalidation across tests
+        $stmt = $this->db->prepare('DELETE FROM pfme_mailbox_security WHERE mailbox = ?');
+        $stmt->execute([$this->testMailbox]);
+    }
+
+    private function loadPostfixAdminAuth(): void
+    {
+        if (self::$postfixAdminAuthLoaded) {
+            return;
+        }
+
+        $config = require __DIR__ . '/../../config/config.php';
+        $sourcePath = rtrim($config['postfixadmin']['source_path'] ?? '/usr/src/postfixadmin', '/');
+        $configDefault = $sourcePath . '/config.inc.php';
+        $configLocal = $sourcePath . '/config.local.php';
+        $functions = $sourcePath . '/functions.inc.php';
+
+        if (is_file($configDefault)) {
+            require_once $configDefault;
+        }
+
+        if (!is_file($configLocal)) {
+            throw new \RuntimeException("PostfixAdmin config.local.php not found at: {$configLocal}");
+        }
+
+        if (!is_file($functions)) {
+            throw new \RuntimeException("PostfixAdmin functions.inc.php not found at: {$functions}");
+        }
+
+        require_once $configLocal;
+        require_once $functions;
+
+        self::$postfixAdminAuthLoaded = true;
+    }
+
+    private function setMailboxPassword(string $mailbox, string $password): void
+    {
+        $this->loadPostfixAdminAuth();
+        $hash = pacrypt($password);
+        $stmt = $this->db->prepare('UPDATE mailbox SET password = ?, active = 1 WHERE username = ?');
+        $stmt->execute([$hash, $mailbox]);
     }
 
     /**
@@ -146,12 +193,16 @@ class AuthenticationFlowTest extends TestCase
      */
     public function testPasswordChangeWorkflow(): void
     {
+        // Ensure the test mailbox starts with the expected password
+        $this->setMailboxPassword($this->testMailbox, $this->testPassword);
+
         // Authenticate with original password
         $authenticated = $this->authService->authenticateMailbox($this->testMailbox, $this->testPassword);
         $this->assertTrue($authenticated, 'Should authenticate with original password');
 
         // Change password
-        $newPassword = 'New Secure Pass 123!';
+        $newPassword = 'New Secure Pass 123!@';
+
         try {
             $this->authService->changeMailboxPassword($this->testMailbox, $this->testPassword, $newPassword);
 
@@ -162,17 +213,11 @@ class AuthenticationFlowTest extends TestCase
             // Verify new password works
             $newPasswordAuth = $this->authService->authenticateMailbox($this->testMailbox, $newPassword);
             $this->assertTrue($newPasswordAuth, 'New password should work after change');
-
-            // Change back to original password for cleanup
-            $this->authService->changeMailboxPassword($this->testMailbox, $newPassword, $this->testPassword);
         } catch (\Exception $e) {
-            // Change back to original password even if test fails
-            try {
-                $this->authService->changeMailboxPassword($this->testMailbox, $newPassword, $this->testPassword);
-            } catch (\Exception $cleanupException) {
-                // Ignore cleanup errors
-            }
             throw $e;
+        } finally {
+            // Always reset the mailbox password directly in the DB to the expected seed value
+            $this->setMailboxPassword($this->testMailbox, $this->testPassword);
         }
     }
 
