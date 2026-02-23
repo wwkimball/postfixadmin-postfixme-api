@@ -357,7 +357,12 @@ The API creates additional tables in the PostfixAdmin database:
 - `pfme_auth_log_summary` - Daily auth summary (mailbox + counts)
 - `pfme_auth_log_archive` - Archived auth log records (optional)
 
-Schema files are located in `schema/mysql/2026/01/001-pfme-initial.sql` and are applied via the existing schema automation.
+For complete schema documentation including table structures, indexes, and migration procedures, see:
+
+- [Database Platform Support](docs/README-Supported_Database_Platforms.md)
+- [MySQL/MariaDB Schema](docs/README-MySQL.md)
+- [PostgreSQL Schema](docs/README-PostgreSQL.md)
+- [SQLite Schema](docs/README-SQLite.md)
 
 ## Security Considerations
 
