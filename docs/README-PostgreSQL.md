@@ -269,31 +269,6 @@ PostgreSQL-specific data type choices:
 - **INTEGER:** 32-bit signed integer (sufficient for count columns)
 - **DATE:** Calendar date (no time component)
 
-## Schema Versioning
-
-The PostfixMe schema follows the same versioning approach as PostfixAdmin using Schema Description Files (DDL):
-
-- Schema files are located in `/schema/postgresql/YYYY/MM/`
-- Files follow the naming convention: `YYYYMMDD-N.ddl`
-- Each forward migration has a corresponding rollback: `YYYYMMDD-N.rollback.ddl`
-- Schema version is tracked in the PostfixAdmin `settings` table
-
-**Note:** While MySQL schema files exist in this project, PostgreSQL schema files would need to be created following the same structure and conventions. The SQL syntax differences are minimal (primarily data type names and auto-increment syntax).
-
-## Initial Schema Deployment
-
-For PostgreSQL deployments, create equivalent DDL files based on the MySQL schema:
-
-1. Convert `BIGINT UNSIGNED AUTO_INCREMENT` to `BIGSERIAL`
-2. Convert `DATETIME` to `TIMESTAMP WITHOUT TIME ZONE`
-3. Convert `INT UNSIGNED` to `INTEGER`
-4. Convert `BOOLEAN NOT NULL DEFAULT 0` to `BOOLEAN NOT NULL DEFAULT FALSE`
-5. Adjust index creation syntax (indexes are created separately, not inline)
-6. Convert `ENGINE=InnoDB` clauses (not needed in PostgreSQL)
-7. Remove `DEFAULT CHARSET` and `COLLATE` clauses (PostgreSQL uses database-level encoding)
-
-See `/schema/postgresql/` in the project root for the schema organization structure.
-
 ## Maintenance Tasks
 
 ### Token Cleanup
@@ -470,23 +445,6 @@ PostgreSQL's full-text search can be used for analyzing user agent strings:
 ALTER TABLE pfme_auth_log ADD COLUMN user_agent_vector tsvector;
 CREATE INDEX idx_pfme_auth_log_fts ON pfme_auth_log USING GIN (user_agent_vector);
 ```
-
-## Migration from MySQL
-
-If migrating from MySQL to PostgreSQL:
-
-- Use `pg_loader` or similar tool for bulk data migration
-- Convert schema differences (data types, indexes)
-- Rewrite any MySQL-specific syntax in stored procedures
-- Test all queries for PostgreSQL compatibility
-- Adjust application code to use PostgreSQL PDO driver
-
-Key differences to address:
-
-- `AUTO_INCREMENT` → `SERIAL` or `BIGSERIAL`
-- `DATETIME` → `TIMESTAMP WITHOUT TIME ZONE`
-- `BOOLEAN` values: `0/1` → `FALSE/TRUE`
-- Index syntax: inline → separate CREATE INDEX statements
 
 ## Troubleshooting
 

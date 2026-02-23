@@ -269,24 +269,6 @@ All tables use **InnoDB** for:
 - Foreign key constraint support (if needed in future)
 - Crash recovery capabilities
 
-## Schema Versioning
-
-The PostfixMe schema uses versioned SQL migration files to track database changes over time.
-
-**Schema evolution:**
-
-- `20260112-1` - Creates core PostfixMe tables (refresh tokens, revoked tokens, auth log)
-- `20260130-1` - Adds token rotation support (family_id, rotated_from/to)
-- `20260204-1` - Adds auth log summary and archive tables
-- `20260206-1` - Adds mailbox security tracking for password change detection
-- `20260217-1` - Removes unused device_id column
-
-**Deployment:**
-
-Schema files should be applied in chronological order during initial deployment. Each migration includes both forward (`.sql`) and rollback (`.rollback.sql`) scripts for safe schema management.
-
-For deployment-specific schema automation, consult your deployment environment's documentation.
-
 ## Maintenance Tasks
 
 ### Token Cleanup
@@ -436,15 +418,6 @@ Indexes are carefully chosen to optimize common query patterns:
 3. **Connection Encryption:** Use TLS for database connections in production
 4. **Backup Security:** Encrypt database backups (they contain sensitive auth data)
 5. **Audit Retention:** Define clear data retention policies for compliance
-
-## Migration from Earlier Versions
-
-If upgrading from an earlier PostfixMe deployment, the schema migration scripts handle all necessary changes:
-
-- **device_id Removal (20260217-1):** The `device_id` column is removed as it was never used
-- **Token Rotation (20260130-1):** Existing tokens remain valid; rotation applies to new tokens
-
-See rollback scripts (`*.rollback.template.sql`) for downgrade procedures if needed.
 
 ## Troubleshooting
 

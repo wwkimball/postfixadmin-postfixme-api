@@ -189,55 +189,6 @@ services:
 
 → See [MySQL documentation](README-MySQL.md) for production setup, replication, and advanced configuration.
 
-## Migration Between Database Platforms
-
-For detailed migration instructions specific to each platform, see the platform-specific documentation:
-
-- [MySQL Migration](README-MySQL.md#migration-between-platforms)
-- [PostgreSQL Migration](README-PostgreSQL.md#migration-between-platforms)
-- [SQLite Migration](README-SQLite.md#migration-between-platforms)
-
-### Exporting from Current Database
-
-For MySQL:
-
-```bash
-mysqldump --compatible=ansi postfixadmin > postfixadmin-export.sql
-```
-
-For PostgreSQL:
-
-```bash
-pg_dump postfixadmin > postfixadmin-export.sql
-```
-
-For SQLite:
-
-```bash
-sqlite3 postfixadmin.db .dump > postfixadmin-export.sql
-```
-
-### Importing to Target Database
-
-The generated SQL should be mostly compatible between platforms. Minor adjustments may be needed for:
-
-- `AUTO_INCREMENT` vs `AUTOINCREMENT` vs `SERIAL`
-- `DATETIME` vs `TIMESTAMP` vs `TEXT`
-- `BOOLEAN` vs `TINYINT(1)`
-
-Use database-specific tools to handle type conversion:
-
-```bash
-# MySQL import
-mysql postfixadmin < postfixadmin-export.sql
-
-# PostgreSQL import
-psql postfixadmin < postfixadmin-export.sql
-
-# SQLite import
-sqlite3 postfixadmin.db < postfixadmin-export.sql
-```
-
 ## Performance Considerations
 
 ### MySQL/MariaDB

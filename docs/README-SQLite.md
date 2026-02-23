@@ -320,36 +320,6 @@ SQLite uses a dynamic type system with type affinity. The declared types guide s
 
 This schema uses TEXT for timestamps to maintain human-readability and compatibility with SQLite's date/time functions.
 
-## Schema Versioning
-
-SQLite schema versioning can follow the same patterns as MySQL and PostgreSQL:
-
-- Schema files use `.sql` extension
-- Files follow naming convention: `YYYYMMDD-N.sql`
-- Each forward migration has a corresponding rollback: `YYYYMMDD-N.rollback.sql`
-- Schema version tracked in PostfixAdmin `settings` table
-
-**Note:** While the project's existing schema automation scripts support MySQL and PostgreSQL, SQLite support would need to be added. Manual schema management is straightforward for SQLite given its simplicity.
-
-## Initial Schema Deployment
-
-Create all tables in a single transaction for atomicity:
-
-```sql
-BEGIN TRANSACTION;
-
--- Create all PostfixMe tables (statements from above)
-CREATE TABLE IF NOT EXISTS pfme_refresh_tokens (...);
-CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_mailbox ON pfme_refresh_tokens (mailbox);
--- ... (all other tables and indexes)
-
--- Update schema version
-INSERT OR REPLACE INTO settings (name, value)
-VALUES ('pfme_schema_version', '20260223-1');
-
-COMMIT;
-```
-
 ## Maintenance Tasks
 
 ### Token Cleanup
@@ -625,35 +595,6 @@ SQLite is excellent for many use cases but has limitations:
 - Enable foreign key constraints if needed
 - Consider migrating to PostgreSQL/MySQL for production if concurrency demands increase
 
-## Migration Between Platforms
-
-### From MySQL/PostgreSQL to SQLite
-
-```bash
-# Using sqlite3 CLI and mysqldump
-mysqldump --compatible=ansi postfixadmin | sqlite3 postfixadmin.db
-
-# Manual conversion script
-php convert-to-sqlite.php
-
-# Or use third-party tools:
-# - pgloader
-# - db-converter
-```
-
-### From SQLite to MySQL/PostgreSQL
-
-```bash
-# Export to SQL
-sqlite3 postfixadmin.db .dump > export.sql
-
-# Convert SQL syntax for target platform
-sed 's/INTEGER PRIMARY KEY AUTOINCREMENT/BIGINT AUTO_INCREMENT/g' export.sql > mysql-import.sql
-
-# Import to MySQL
-mysql postfixadmin < mysql-import.sql
-```
-
 ## Troubleshooting
 
 ### Database Locked Errors
@@ -740,7 +681,7 @@ $pdo = new PDO('sqlite::memory:');
 $pdo = new PDO('sqlite:/tmp/test-postfixadmin.db');
 
 // Load schema
-$schema = file_get_contents('schema/sqlite/pfme-schema.sql');
+$schema = file_get_contents('pfme-schema.sql');
 $pdo->exec($schema);
 
 // Run tests...

@@ -35,8 +35,8 @@ The PostfixMe API requires additional database tables. Apply the schema:
 
 ```bash
 # The schema will be automatically applied if using the existing schema automation
-# Otherwise, manually apply:
-mysql -u root -p postfixadmin < schema/mysql/2026/01/001-pfme-initial.sql
+# Otherwise, manually apply the PostfixMe tables using the SQL in README-MySQL.md
+# (or the equivalent SQL for your database platform).
 ```
 
 The schema creates the following tables:
@@ -331,11 +331,10 @@ When upgrading PostfixMe:
 
 1. Backup JWT keys and database
 2. Pull latest code: `git pull`
-3. Apply any new schema changes
-4. Rebuild images: `docker-compose build --no-cache`
-5. Restart services: `./stop.sh && ./start.sh`
-6. Verify API health checks pass
-7. Test with mobile app
+3. Rebuild images: `docker-compose build --no-cache`
+4. Restart services: `./stop.sh && ./start.sh`
+5. Verify API health checks pass
+6. Test with mobile app
 
 ## Support
 
@@ -349,4 +348,4 @@ For issues:
 
 ## License
 
-See LICENSE file in project root.
+See LICENSE file in this repository.
