@@ -11,13 +11,14 @@
 
 return [
     'database' => [
-        // Database type: 'mysql' (default), 'mariadb', 'postgresql', or 'sqlite'
-        'type' => getenv('POSTFIXADMIN_DB_TYPE') ?: 'mysql',
+        // Database type: 'mysqli' (default), 'pgsql', or 'sqlite'
+        // Supports PostfixAdmin value formats
+        'type' => getenv('POSTFIXADMIN_DB_TYPE') ?: 'mysqli',
 
         // MySQL/MariaDB/PostgreSQL connection settings
         'host' => getenv('POSTFIXADMIN_DB_HOST') ?: 'db',
         'port' => getenv('POSTFIXADMIN_DB_PORT') ?: (
-            (getenv('POSTFIXADMIN_DB_TYPE') === 'postgresql') ? '5432' : '3306'
+            (getenv('POSTFIXADMIN_DB_TYPE') === 'pgsql') ? '5432' : '3306'
         ),
         'name' => getenv('POSTFIXADMIN_DB_NAME') ?: 'postfixadmin',
 

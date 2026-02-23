@@ -10,6 +10,10 @@ use PDOException;
  *
  * Supports multiple database platforms: MySQL, MariaDB, PostgreSQL, and SQLite.
  * The database type is determined by the POSTFIXADMIN_DB_TYPE environment variable.
+ * Compatible with both PostfixMe API and PostfixAdmin value formats:
+ *   - MySQL/MariaDB: 'mysqli'
+ *   - PostgreSQL: 'pgsql'
+ *   - SQLite: 'sqlite'
  */
 class Database
 {
@@ -26,13 +30,13 @@ class Database
         if (self::$connection === null) {
             $config = require __DIR__ . '/../../config/config.php';
 
-            $dbType = $config['database']['type'] ?? 'mysql';
+            $dbType = $config['database']['type'] ?? 'mysqli';
             self::$dbType = $dbType;
 
             try {
                 match ($dbType) {
-                    'mysql', 'mariadb' => self::connectMysql($config),
-                    'postgresql' => self::connectPostgresql($config),
+                    'mysqli' => self::connectMysql($config),
+                    'pgsql' => self::connectPostgresql($config),
                     'sqlite' => self::connectSqlite($config),
                     default => throw new \RuntimeException("Unsupported database type: {$dbType}"),
                 };
@@ -56,7 +60,7 @@ class Database
             self::getConnection();
         }
 
-        return self::$dbType ?? 'mysql';
+        return self::$dbType ?? 'mysqli';
     }
 
     /**

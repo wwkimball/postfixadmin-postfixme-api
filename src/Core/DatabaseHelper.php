@@ -6,7 +6,7 @@ namespace Pfme\Api\Core;
  * DatabaseHelper - provides database-agnostic SQL functions
  *
  * This class provides abstraction for database-specific SQL functions
- * to support MySQL, PostgreSQL, and SQLite uniformly.
+ * to support MySQL/MariaDB (mysqli), PostgreSQL (pgsql), and SQLite uniformly.
  */
 class DatabaseHelper
 {
@@ -18,7 +18,7 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => 'NOW()',
+            'pgsql' => 'NOW()',
             'sqlite' => "datetime('now')",
             default => 'NOW()', // MySQL/MariaDB
         };
@@ -35,7 +35,7 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => date('Y-m-d H:i:s', $timestamp),
+            'pgsql' => date('Y-m-d H:i:s', $timestamp),
             'sqlite' => date('Y-m-d H:i:s', $timestamp),
             default => date('Y-m-d H:i:s', $timestamp), // MySQL/MariaDB
         };
@@ -52,9 +52,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "NOW() - INTERVAL '${seconds} seconds'",
-            'sqlite' => "datetime('now', '-${seconds} seconds')",
-            default => "DATE_SUB(NOW(), INTERVAL ${seconds} SECOND)", // MySQL/MariaDB
+            'pgsql' => "NOW() - INTERVAL '{$seconds} seconds'",
+            'sqlite' => "datetime('now', '-{$seconds} seconds')",
+            default => "DATE_SUB(NOW(), INTERVAL {$seconds} SECOND)", // MySQL/MariaDB
         };
     }
 
@@ -69,9 +69,9 @@ class DatabaseHelper
         $subtractExpr = self::subtractSeconds($seconds, $dbType);
 
         return match ($dbType) {
-            'postgresql' => "${column} > NOW() - INTERVAL '${seconds} seconds'",
-            'sqlite' => "${column} > datetime('now', '-${seconds} seconds')",
-            default => "${column} > DATE_SUB(NOW(), INTERVAL ${seconds} SECOND)", // MySQL/MariaDB
+            'pgsql' => "{$column} > NOW() - INTERVAL '{$seconds} seconds'",
+            'sqlite' => "{$column} > datetime('now', '-{$seconds} seconds')",
+            default => "{$column} > DATE_SUB(NOW(), INTERVAL {$seconds} SECOND)", // MySQL/MariaDB
         };
     }
 
@@ -86,9 +86,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "${column} > NOW() - (? || ' seconds')::INTERVAL",
-            'sqlite' => "${column} > datetime('now', '-' || ? || ' seconds')",
-            default => "${column} > DATE_SUB(NOW(), INTERVAL ? SECOND)", // MySQL/MariaDB
+            'pgsql' => "{$column} > NOW() - (? || ' seconds')::interval",
+            'sqlite' => "{$column} > datetime('now', '-' || ? || ' seconds')",
+            default => "{$column} > DATE_SUB(NOW(), INTERVAL ? SECOND)", // MySQL/MariaDB
         };
     }
 
@@ -100,9 +100,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "${column} > NOW()",
-            'sqlite' => "${column} > datetime('now')",
-            default => "${column} > NOW()", // MySQL/MariaDB
+            'pgsql' => "{$column} > NOW()",
+            'sqlite' => "{$column} > datetime('now')",
+            default => "{$column} > NOW()", // MySQL/MariaDB
         };
     }
 
@@ -114,9 +114,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "${column} < NOW()",
-            'sqlite' => "${column} < datetime('now')",
-            default => "${column} < NOW()", // MySQL/MariaDB
+            'pgsql' => "{$column} < NOW()",
+            'sqlite' => "{$column} < datetime('now')",
+            default => "{$column} < NOW()", // MySQL/MariaDB
         };
     }
 
@@ -128,9 +128,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "DATE(${column})",
-            'sqlite' => "date(${column})",
-            default => "DATE(${column})", // MySQL/MariaDB
+            'pgsql' => "DATE({$column})",
+            'sqlite' => "date({$column})",
+            default => "DATE({$column})", // MySQL/MariaDB
         };
     }
 
@@ -142,9 +142,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "COUNT(*) FILTER (WHERE ${condition})",
-            'sqlite' => "SUM(CASE WHEN ${condition} THEN 1 ELSE 0 END)",
-            default => "SUM(IF(${condition}, 1, 0))", // MySQL/MariaDB - IFNULL alternative
+            'pgsql' => "COUNT(*) FILTER (WHERE {$condition})",
+            'sqlite' => "SUM(CASE WHEN {$condition} THEN 1 ELSE 0 END)",
+            default => "SUM(IF({$condition}, 1, 0))", // MySQL/MariaDB - IFNULL alternative
         };
     }
 
@@ -156,9 +156,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "SUM(CASE WHEN ${condition} THEN 1 ELSE 0 END)",
-            'sqlite' => "SUM(CASE WHEN ${condition} THEN 1 ELSE 0 END)",
-            default => "SUM(IF(${condition}, 1, 0))", // MySQL/MariaDB
+            'pgsql' => "SUM(CASE WHEN {$condition} THEN 1 ELSE 0 END)",
+            'sqlite' => "SUM(CASE WHEN {$condition} THEN 1 ELSE 0 END)",
+            default => "SUM(IF({$condition}, 1, 0))", // MySQL/MariaDB
         };
     }
 
@@ -173,7 +173,7 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => 'lastval()',
+            'pgsql' => 'lastval()',
             'sqlite' => 'last_insert_rowid()',
             default => 'LAST_INSERT_ID()', // MySQL/MariaDB
         };
@@ -187,9 +187,9 @@ class DatabaseHelper
         $dbType = $dbType ?? Database::getType();
 
         return match ($dbType) {
-            'postgresql' => "COALESCE(${column}, ${default})",
-            'sqlite' => "IFNULL(${column}, ${default})",
-            default => "IFNULL(${column}, ${default})", // MySQL/MariaDB
+            'pgsql' => "COALESCE({$column}, {$default})",
+            'sqlite' => "IFNULL({$column}, {$default})",
+            default => "IFNULL({$column}, {$default})", // MySQL/MariaDB
         };
     }
 }

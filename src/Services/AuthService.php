@@ -206,13 +206,13 @@ class AuthService
         $db = Database::getConnection();
         $dbType = Database::getType();
 
-        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
+        $timeComparison = DatabaseHelper::timestampAfterSeconds('attempted_at', $window, $dbType);
         $stmt = $db->prepare(
             "SELECT COUNT(*) as attempts FROM pfme_auth_log
              WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
-        $stmt->execute([$mailbox, $window]);
+        $stmt->execute([$mailbox]);
         $result = $stmt->fetch();
 
         return ($result['attempts'] ?? 0) >= $maxAttempts;
@@ -227,13 +227,13 @@ class AuthService
         $dbType = Database::getType();
 
         // Check for recent failed attempts (within one hour)
-        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
+        $timeComparison = DatabaseHelper::timestampAfterSeconds('attempted_at', 3600, $dbType);
         $stmt = $db->prepare(
             "SELECT COUNT(*) as attempts FROM pfme_auth_log
              WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
-        $stmt->execute([$mailbox, 3600]); // 3600 seconds = 1 hour
+        $stmt->execute([$mailbox]);
         $result = $stmt->fetch();
 
         if (($result['attempts'] ?? 0) < $threshold) {
@@ -302,13 +302,13 @@ class AuthService
         $db = Database::getConnection();
         $dbType = Database::getType();
 
-        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
+        $timeComparison = DatabaseHelper::timestampAfterSeconds('attempted_at', $window, $dbType);
         $stmt = $db->prepare(
             "SELECT COUNT(*) as attempts FROM pfme_auth_log
              WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
-        $stmt->execute([$mailbox, $window]);
+        $stmt->execute([$mailbox]);
         $result = $stmt->fetch();
 
         return ($result['attempts'] ?? 0) >= $maxAttempts;

@@ -181,10 +181,11 @@ class TokenService
         $oldTokenHash = hash('sha256', $oldToken);
         $db = Database::getConnection();
         $dbType = Database::getType();
+        $gracePeriod = $this->config['jwt']['refresh_token_grace_period'];
 
         // Verify old token is still valid or within grace period
         $nowComparison = DatabaseHelper::timestampAfterNow('expires_at', $dbType);
-        $gracePeriodComparison = DatabaseHelper::timestampAfterSecondsParam('expires_at', $dbType);
+        $gracePeriodComparison = DatabaseHelper::timestampAfterSeconds('expires_at', $gracePeriod, $dbType);
 
         $stmt = $db->prepare(
             "SELECT * FROM pfme_refresh_tokens
@@ -195,8 +196,7 @@ class TokenService
              )"
         );
 
-        $gracePeriod = $this->config['jwt']['refresh_token_grace_period'];
-        $stmt->execute([$oldTokenHash, $gracePeriod]);
+        $stmt->execute([$oldTokenHash]);
         $oldTokenData = $stmt->fetch();
 
         if (!$oldTokenData) {
