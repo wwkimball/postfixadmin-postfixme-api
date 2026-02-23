@@ -316,23 +316,8 @@ For platform-specific troubleshooting:
 
 ## Configuration Files
 
-- **Base config**: `docker/.env.postfixadmin`
-  - `POSTFIXADMIN_DB_TYPE=mysqli` (default for all stages)
-
-- **Stage-specific configs**:
-  - `docker/.env.postfixadmin.development`
-  - `docker/.env.postfixadmin.qa`
-  - `docker/.env.postfixadmin.staging`
-  - `docker/.env.postfixadmin.production`
-
-- **API-specific configs**:
-  - `docker/.env.pfme-api`
-  - `docker/.env.pfme-api.development`
-  - `docker/.env.pfme-api.qa`
-  - `docker/.env.pfme-api.staging`
-  - `docker/.env.pfme-api.production`
-
-Each API env file includes documentation on how to override `POSTFIXADMIN_DB_TYPE` for database-specific testing.
+This API reads database settings exclusively from environment variables (for example, `POSTFIXADMIN_DB_TYPE`, `POSTFIXADMIN_DB_HOST`, `POSTFIXADMIN_DB_PORT`).
+Configure these values in the environment file or service configuration used by your deployment.
 
 ## Related Documentation
 
