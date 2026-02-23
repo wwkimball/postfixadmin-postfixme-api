@@ -537,9 +537,9 @@ LIMIT 10;
 ## Related Documentation
 
 - [PostfixMe API Documentation](../README.md)
-- [JWT Configuration](../../../docs/README-JWT.md)
-- [Deployment Guide](../../../docs/DEPLOYMENT-PFME.md)
-- [PostgreSQL Schema Automation](../../../lib/database/README-PostgreSQL.md)
+- [JWT Configuration](JWT-SETUP.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [Database Platform Support](README-Supported_Database_Platforms.md)
 - [PostfixAdmin Documentation](https://github.com/postfixadmin/postfixadmin)
 
 ## License

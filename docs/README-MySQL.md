@@ -271,46 +271,124 @@ All tables use **InnoDB** for:
 
 ## Schema Versioning
 
-The PostfixMe schema follows the same versioning approach as PostfixAdmin using Schema Description Files (DDL):
+The PostfixMe schema uses versioned SQL migration files to track database changes over time.
 
-- Schema files are located in `/schema/mysql/YYYY/MM/`
-- Files follow the naming convention: `YYYYMMDD-N.template.sql`
-- Each forward migration has a corresponding rollback: `YYYYMMDD-N.rollback.template.sql`
-- Schema version is tracked in the PostfixAdmin `settings` table
+**Schema evolution:**
 
-## Initial Schema Deployment
+- `20260112-1` - Creates core PostfixMe tables (refresh tokens, revoked tokens, auth log)
+- `20260130-1` - Adds token rotation support (family_id, rotated_from/to)
+- `20260204-1` - Adds auth log summary and archive tables
+- `20260206-1` - Adds mailbox security tracking for password change detection
+- `20260217-1` - Removes unused device_id column
 
-The PostfixMe schema tables are created automatically during Docker container initialization. The schema files are processed in chronological order:
+**Deployment:**
 
-1. `20260112-1.template.sql` - Creates core PostfixMe tables
-2. `20260130-1.template.sql` - Adds token rotation support
-3. `20260204-1.template.sql` - Adds auth log summary and archive tables
-4. `20260206-1.template.sql` - Adds mailbox security tracking
-5. `20260217-1.template.sql` - Removes unused device_id column
+Schema files should be applied in chronological order during initial deployment. Each migration includes both forward (`.sql`) and rollback (`.rollback.sql`) scripts for safe schema management.
 
-See `/schema/mysql/` in the project root for the complete schema history.
+For deployment-specific schema automation, consult your deployment environment's documentation.
 
 ## Maintenance Tasks
 
 ### Token Cleanup
 
-Remove expired refresh tokens and revoked access tokens that have passed their expiration time:
+Remove expired refresh tokens and revoked access tokens that have passed their expiration time.
+
+**Recommended frequency:** Daily
+
+**Implementation:**
 
 ```bash
-# See deploy.d/pfme-cleanup-tokens.sh for automated cleanup implementation
+#!/bin/bash
+# PostfixMe Token Cleanup Script
+# Run this periodically to clean up expired tokens
+
+set -e
+
+# Configuration
+CONTAINER_NAME="pfme-api"  # Name of your PostfixMe API container
+API_ROOT="/var/www/pfme-api"  # Path to API inside container
+
+# Run cleanup via Docker
+docker exec "$CONTAINER_NAME" php -r "
+require '$API_ROOT/vendor/autoload.php';
+
+\$tokenService = new \Pfme\Api\Services\TokenService();
+\$tokenService->cleanupExpiredTokens();
+
+echo \"Token cleanup completed\n\";
+"
+
+echo "PostfixMe token cleanup completed successfully"
 ```
 
-Recommended frequency: Daily
+**Configuration variables:**
+
+- `CONTAINER_NAME`: Name of your Docker container running the API
+- `API_ROOT`: Path to the API root directory inside the container
+
+**What it does:**
+
+- Removes expired refresh tokens from `pfme_refresh_tokens`
+- Removes revoked access tokens past their expiration from `pfme_revoked_tokens`
+- Uses the API's TokenService for cleanup logic
 
 ### Auth Log Maintenance
 
-Summarize and archive old authentication log entries:
+Summarize and archive old authentication log entries according to retention policies.
+
+**Recommended frequency:** Daily
+
+**Implementation:**
 
 ```bash
-# See deploy.d/pfme-auth-log-maintenance.sh for automated maintenance implementation
+#!/bin/bash
+# PostfixMe Auth Log Maintenance Script
+# Aggregates auth log summaries, applies retention, and archives if enabled.
+
+set -e
+
+# Configuration
+CONTAINER_NAME="pfme-api"  # Name of your PostfixMe API container
+API_ROOT="/var/www/pfme-api"  # Path to API inside container
+
+# Run maintenance via Docker
+docker exec "$CONTAINER_NAME" php -r "
+require '$API_ROOT/vendor/autoload.php';
+
+\$authService = new \Pfme\Api\Services\AuthService();
+\$authService->maintainAuthLogs();
+
+echo \"Auth log maintenance completed\n\";
+"
+
+echo "PostfixMe auth log maintenance completed successfully"
 ```
 
-Recommended frequency: Daily
+**Configuration variables:**
+
+- `CONTAINER_NAME`: Name of your Docker container running the API
+- `API_ROOT`: Path to the API root directory inside the container
+
+**What it does:**
+
+- Creates/updates daily summaries in `pfme_auth_log_summary`
+- Archives old entries to `pfme_auth_log_archive` (if archiving is enabled)
+- Deletes detailed logs older than retention period from `pfme_auth_log`
+- Respects configuration from environment variables:
+  - `PFME_AUTH_LOG_RETENTION_DAYS` (default: 90)
+  - `PFME_AUTH_LOG_SUMMARY_ENABLED` (default: true)
+  - `PFME_AUTH_LOG_ARCHIVE_ENABLED` (default: false)
+  - `PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS` (default: 365)
+
+**Scheduling with cron:**
+
+```cron
+# Run token cleanup daily at 2:00 AM
+0 2 * * * /path/to/pfme-cleanup-tokens.sh
+
+# Run auth log maintenance daily at 2:15 AM
+15 2 * * * /path/to/pfme-auth-log-maintenance.sh
+```
 
 ## Database User Privileges
 
@@ -401,9 +479,9 @@ SHOW INDEX FROM pfme_auth_log;
 ## Related Documentation
 
 - [PostfixMe API Documentation](../README.md)
-- [JWT Configuration](../../../docs/README-JWT.md)
-- [Deployment Guide](../../../docs/DEPLOYMENT-PFME.md)
-- [MySQL Schema Automation](../../../lib/database/README-MySQL.md)
+- [JWT Configuration](JWT-SETUP.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [Database Platform Support](README-Supported_Database_Platforms.md)
 - [PostfixAdmin Documentation](https://github.com/postfixadmin/postfixadmin)
 
 ## License

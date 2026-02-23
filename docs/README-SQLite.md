@@ -778,8 +778,9 @@ if ($config['database']['driver'] === 'sqlite') {
 ## Related Documentation
 
 - [PostfixMe API Documentation](../README.md)
-- [JWT Configuration](../../../docs/README-JWT.md)
-- [Deployment Guide](../../../docs/DEPLOYMENT-PFME.md)
+- [JWT Configuration](JWT-SETUP.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [Database Platform Support](README-Supported_Database_Platforms.md)
 - [PostfixAdmin Documentation](https://github.com/postfixadmin/postfixadmin)
 - [SQLite Documentation](https://www.sqlite.org/docs.html)
 - [SQLite PHP PDO Driver](https://www.php.net/manual/en/ref.pdo-sqlite.php)

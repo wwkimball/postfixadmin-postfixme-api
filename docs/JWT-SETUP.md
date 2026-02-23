@@ -49,35 +49,35 @@ RS256 (RSA Signature with SHA-256) uses asymmetric cryptography:
 
 ## Generating JWT Secret Files
 
-The PostfixMe API requires two files:
+The PostfixMe API requires two files for JWT token signing and verification:
 
-- `docker/secrets/pfme_jwt_private_key.txt` - Used by the server to **sign** tokens
-- `docker/secrets/pfme_jwt_public_key.txt` - Used by clients and the server to **verify** tokens
+- **Private Key File** - Used by the server to **sign** tokens
+- **Public Key File** - Used by clients and the server to **verify** tokens
 
 ### Quick Generation (Recommended)
 
-Run this command from the project root directory:
+Generate the key pair using OpenSSL:
 
 ```bash
 # Generate private key (2048-bit RSA key)
-openssl genrsa -out docker/secrets/pfme_jwt_private_key.txt 2048
+openssl genrsa -out pfme_jwt_private_key.txt 2048
 
 # Extract public key from private key
-openssl rsa -in docker/secrets/pfme_jwt_private_key.txt -pubout -out docker/secrets/pfme_jwt_public_key.txt
+openssl rsa -in pfme_jwt_private_key.txt -pubout -out pfme_jwt_public_key.txt
 
 # Set proper permissions (restrict access to private key)
-chmod 600 docker/secrets/pfme_jwt_private_key.txt
-chmod 644 docker/secrets/pfme_jwt_public_key.txt
+chmod 600 pfme_jwt_private_key.txt
+chmod 644 pfme_jwt_public_key.txt
 ```
 
 ### What Each Command Does
 
-1. **`openssl genrsa -out docker/secrets/pfme_jwt_private_key.txt 2048`**
+1. **`openssl genrsa -out pfme_jwt_private_key.txt 2048`**
    - `openssl genrsa`: Generate RSA private key
    - `2048`: Key size in bits (widely compatible; use 4096 if you prefer stronger keys)
    - `-out`: Output file location
 
-2. **`openssl rsa -in docker/secrets/pfme_jwt_private_key.txt -pubout -out docker/secrets/pfme_jwt_public_key.txt`**
+2. **`openssl rsa -in pfme_jwt_private_key.txt -pubout -out pfme_jwt_public_key.txt`**
    - `openssl rsa`: RSA key operations
    - `-in`: Input private key file
    - `-pubout`: Extract and output the public key portion
@@ -93,15 +93,15 @@ Check that files were created correctly:
 
 ```bash
 # Verify private key exists and has correct format
-head -1 docker/secrets/pfme_jwt_private_key.txt
+head -1 pfme_jwt_private_key.txt
 # Should output: -----BEGIN RSA PRIVATE KEY-----
 
 # Verify public key exists and has correct format
-head -1 docker/secrets/pfme_jwt_public_key.txt
+head -1 pfme_jwt_public_key.txt
 # Should output: -----BEGIN PUBLIC KEY-----
 
 # Check key size
-openssl rsa -in docker/secrets/pfme_jwt_private_key.txt -text -noout | grep "Private-Key"
+openssl rsa -in pfme_jwt_private_key.txt -text -noout | grep "Private-Key"
 # Should show: Private-Key: (2048 bit, RSA)
 ```
 
@@ -112,9 +112,9 @@ The Docker Compose configuration references these files:
 ```yaml
 secrets:
   pfme_jwt_private_key:
-    file: ./docker/secrets/pfme_jwt_private_key.txt
+    file: ./pfme_jwt_private_key.txt
   pfme_jwt_public_key:
-    file: ./docker/secrets/pfme_jwt_public_key.txt
+    file: ./pfme_jwt_public_key.txt
 ```
 
 At runtime, Docker makes these available inside containers at:
@@ -141,8 +141,8 @@ The PHP API (`pfme/api/config/config.php`) reads these file paths and uses them 
 If your private key is compromised:
 
 1. Generate a new key pair immediately
-2. Update `docker/secrets/pfme_jwt_private_key.txt` with the new private key
-3. Update `docker/secrets/pfme_jwt_public_key.txt` with the new public key
+2. Update the private key file with the new private key
+3. Update the public key file with the new public key
 4. Restart the API service
 5. Existing access tokens will become invalid (this is intentional)
 6. Mobile clients must log in again to get new tokens
@@ -174,11 +174,11 @@ This error occurs during Docker Compose configuration when the secret files don'
 If Docker containers can't read the keys:
 
 ```bash
-# Ensure files are readable
-chmod 644 docker/secrets/pfme_jwt_public_key.txt
+# Ensure public key is readable
+chmod 644 pfme_jwt_public_key.txt
 
 # Verify ownership
-ls -l docker/secrets/pfme_jwt_*.txt
+ls -l pfme_jwt_*.txt
 ```
 
 ### Keys Not Persisting After Container Restart
@@ -187,7 +187,7 @@ The keys should persist because they're mounted from the host filesystem. If the
 
 1. Check that files still exist on the host
 2. Verify Docker volume mounts in `docker-compose.yaml`
-3. Confirm `docker/secrets/` directory hasn't been deleted
+3. Confirm the key files haven't been deleted
 
 ## Additional Resources
 

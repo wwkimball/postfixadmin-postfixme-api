@@ -18,8 +18,6 @@ PostfixMe uses RS256 JWT tokens for authentication. For detailed information on 
 Quick generation:
 
 ```bash
-cd docker/secrets
-
 # Generate private key (2048-bit RSA)
 openssl genrsa -out pfme_jwt_private_key.txt 2048
 
@@ -53,7 +51,7 @@ The schema creates the following tables:
 
 Set the required environment variables and secrets. For complete documentation of all configuration options, see [../README.md#configuration](../README.md#configuration).
 
-Ensure the following secrets exist in `docker/secrets/`:
+Ensure the following secrets are available to your deployment:
 
 - `postfixadmin_db_user` - Database username (existing)
 - `postfixadmin_db_password` - Database password (existing)
@@ -62,11 +60,14 @@ Ensure the following secrets exist in `docker/secrets/`:
 
 ## Development Deployment
 
-For local development:
+For local development with Docker:
 
 ```bash
-# Build and start all services including pfme-api
-./build.sh --clean --start
+# Build the API image
+docker-compose build pfme-api
+
+# Start the API service
+docker-compose up -d pfme-api
 
 # The API will be available at:
 # http://localhost:8071/api/v1/
@@ -85,10 +86,10 @@ For testing and CI:
 
 ```bash
 # Build QA environment
-docker-compose -f docker/docker-compose.yaml -f docker/docker-compose.qa.yaml build
+docker-compose -f docker-compose.yaml -f docker-compose.qa.yaml build
 
 # Run tests
-docker-compose -f docker/docker-compose.qa.yaml run --rm pfme-api-tests
+docker-compose -f docker-compose.qa.yaml run --rm pfme-api-tests
 ```
 
 QA environment features:
@@ -115,10 +116,10 @@ For all configuration options, see [../README.md#configuration](../README.md#con
 
 ```bash
 # Build production images
-./build.sh --clean
+docker-compose -f docker-compose.yaml -f docker-compose.production.yaml build
 
 # Start services
-./start.sh
+docker-compose -f docker-compose.production.yaml up -d
 
 # Verify services
 docker ps | grep pfme
@@ -246,33 +247,32 @@ Or add to cron:
 
 ```cron
 # Clean up expired tokens daily at 2 AM
-0 2 * * * docker exec pfme-api php /path/to/cleanup.php
+0 2 * * * /path/to/pfme-cleanup-tokens.sh
 ```
+
+See [MySQL Schema Documentation](README-MySQL.md#maintenance-tasks) for complete script implementations.
 
 ### Auth Log Maintenance
 
-Auth logs are aggregated, retained, and optionally archived by the maintenance job:
+Auth logs are aggregated, retained, and optionally archived by the maintenance job.
 
-```bash
-# Run auth log maintenance manually
-./deploy.d/pfme-auth-log-maintenance.sh
-```
-
-Or add to cron:
+**Cron schedule:**
 
 ```cron
 # Aggregate and rotate auth logs daily at 2:15 AM
-15 2 * * * /path/to/deploy.d/pfme-auth-log-maintenance.sh
+15 2 * * * /path/to/pfme-auth-log-maintenance.sh
 ```
+
+See [MySQL Schema Documentation](README-MySQL.md#maintenance-tasks) for complete script implementations and configuration options.
 
 ### Backup
 
-Back up the JWT keys:
+Back up the JWT keys to a secure location:
 
 ```bash
 # Backup JWT keys
-cp docker/secrets/pfme_jwt_private_key.txt /secure/backup/location/
-cp docker/secrets/pfme_jwt_public_key.txt /secure/backup/location/
+cp pfme_jwt_private_key.txt /secure/backup/location/
+cp pfme_jwt_public_key.txt /secure/backup/location/
 ```
 
 **Important**: Losing the private key invalidates all issued tokens.
@@ -332,7 +332,7 @@ When upgrading PostfixMe:
 1. Backup JWT keys and database
 2. Pull latest code: `git pull`
 3. Apply any new schema changes
-4. Rebuild images: `./build.sh --clean`
+4. Rebuild images: `docker-compose build --no-cache`
 5. Restart services: `./stop.sh && ./start.sh`
 6. Verify API health checks pass
 7. Test with mobile app
