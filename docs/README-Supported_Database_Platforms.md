@@ -2,13 +2,11 @@
 
 ## Overview
 
-The PostfixMe API supports multiple database platforms:
+The PostfixMe API supports multiple database platforms, the same set as PostfixAdmin:
 
 - **MySQL 5.7+** / **MariaDB 10.3+** (default) - See [README-MySQL.md](README-MySQL.md)
 - **PostgreSQL 9.6+** - See [README-PostgreSQL.md](README-PostgreSQL.md)
 - **SQLite 3.8.0+** - See [README-SQLite.md](README-SQLite.md)
-
-This allows for flexibility in deployment scenarios, from lightweight single-server deployments using SQLite to enterprise setups with dedicated database servers.
 
 ### Platform-Specific Documentation
 
@@ -22,7 +20,7 @@ Each database platform has comprehensive documentation covering schema requireme
 
 ### Database Type Selection
 
-The database platform is controlled via the **`POSTFIXADMIN_DB_TYPE`** environment variable, which should be set in your Docker Compose `.env` files.
+The database platform is controlled via the **`POSTFIXADMIN_DB_TYPE`** environment variable (the same one as used by PostfixAdmin).
 
 #### Supported Values
 
