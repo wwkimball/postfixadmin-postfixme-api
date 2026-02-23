@@ -283,12 +283,12 @@ Remove expired refresh tokens and revoked access tokens that have passed their e
 
 ```sql
 -- Delete expired refresh tokens
-DELETE FROM pfme_refresh_tokens 
-WHERE expires_at < NOW() 
+DELETE FROM pfme_refresh_tokens
+WHERE expires_at < NOW()
   AND (revoked_at IS NULL OR revoked_at < NOW() - INTERVAL '7 days');
 
 -- Delete old revoked access tokens (past their natural expiration + 24 hours)
-DELETE FROM pfme_revoked_tokens 
+DELETE FROM pfme_revoked_tokens
 WHERE revoked_at < NOW() - INTERVAL '24 hours';
 ```
 
@@ -301,7 +301,7 @@ Summarize and archive old authentication log entries:
 ```sql
 -- Summarize yesterday's log entries
 INSERT INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
-SELECT 
+SELECT
     mailbox,
     DATE(attempted_at) as summary_date,
     COUNT(*) FILTER (WHERE success = FALSE) as failed_attempts,
@@ -312,7 +312,7 @@ FROM pfme_auth_log
 WHERE attempted_at >= DATE(NOW() - INTERVAL '1 day')
   AND attempted_at < DATE(NOW())
 GROUP BY mailbox, DATE(attempted_at)
-ON CONFLICT (mailbox, summary_date) 
+ON CONFLICT (mailbox, summary_date)
 DO UPDATE SET
     failed_attempts = EXCLUDED.failed_attempts,
     successful_attempts = EXCLUDED.successful_attempts,
@@ -396,12 +396,12 @@ ALTER TABLE pfme_auth_log SET (
 );
 
 -- Create partial indexes for common queries
-CREATE INDEX idx_pfme_refresh_tokens_active 
-ON pfme_refresh_tokens (mailbox, expires_at) 
+CREATE INDEX idx_pfme_refresh_tokens_active
+ON pfme_refresh_tokens (mailbox, expires_at)
 WHERE revoked_at IS NULL;
 
 -- Consider using BRIN indexes for timestamp columns on very large tables
-CREATE INDEX idx_pfme_auth_log_archive_attempted_brin 
+CREATE INDEX idx_pfme_auth_log_archive_attempted_brin
 ON pfme_auth_log_archive USING BRIN (attempted_at);
 ```
 

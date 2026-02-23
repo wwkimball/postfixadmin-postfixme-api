@@ -318,7 +318,7 @@ CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_mailbox ON pfme_refresh_token
 -- ... (all other tables and indexes)
 
 -- Update schema version
-INSERT OR REPLACE INTO settings (name, value) 
+INSERT OR REPLACE INTO settings (name, value)
 VALUES ('pfme_schema_version', '20260223-1');
 
 COMMIT;
@@ -332,12 +332,12 @@ Remove expired refresh tokens and revoked access tokens:
 
 ```sql
 -- Delete expired refresh tokens
-DELETE FROM pfme_refresh_tokens 
+DELETE FROM pfme_refresh_tokens
 WHERE datetime(expires_at) < datetime('now')
   AND (revoked_at IS NULL OR datetime(revoked_at) < datetime('now', '-7 days'));
 
 -- Delete old revoked access tokens (past their natural expiration + 24 hours)
-DELETE FROM pfme_revoked_tokens 
+DELETE FROM pfme_revoked_tokens
 WHERE datetime(revoked_at) < datetime('now', '-24 hours');
 
 -- Reclaim space after deletes
@@ -355,7 +355,7 @@ BEGIN TRANSACTION;
 
 -- Summarize yesterday's log entries
 INSERT OR REPLACE INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
-SELECT 
+SELECT
     mailbox,
     date(attempted_at) as summary_date,
     SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_attempts,
@@ -489,7 +489,7 @@ SQLite has different performance characteristics than server-based databases:
 
 ```sql
 -- Check if indexes are being used
-EXPLAIN QUERY PLAN 
+EXPLAIN QUERY PLAN
 SELECT * FROM pfme_refresh_tokens WHERE mailbox = 'user@example.com';
 
 -- Analyze database statistics
@@ -500,8 +500,8 @@ ANALYZE;
 
 ```sql
 -- Index only active (non-revoked) tokens
-CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_active 
-ON pfme_refresh_tokens (mailbox, expires_at) 
+CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_active
+ON pfme_refresh_tokens (mailbox, expires_at)
 WHERE revoked_at IS NULL;
 
 -- Index only failed authentication attempts
@@ -646,8 +646,8 @@ PRAGMA quick_check;
 .indexes pfme_refresh_tokens
 
 -- Show all PostfixMe tables
-SELECT name FROM sqlite_master 
-WHERE type='table' AND name LIKE 'pfme_%' 
+SELECT name FROM sqlite_master
+WHERE type='table' AND name LIKE 'pfme_%'
 ORDER BY name;
 ```
 
@@ -720,7 +720,7 @@ if ($config['database']['driver'] === 'sqlite') {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
-    
+
     // Enable WAL mode for better concurrency
     self::$connection->exec('PRAGMA journal_mode=WAL');
     self::$connection->exec('PRAGMA synchronous=NORMAL');
