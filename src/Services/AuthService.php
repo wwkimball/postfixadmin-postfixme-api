@@ -3,6 +3,7 @@
 namespace Pfme\Api\Services;
 
 use Pfme\Api\Core\Database;
+use Pfme\Api\Core\DatabaseHelper;
 
 /**
  * Authentication Service - integrates with PostfixAdmin for mailbox authentication
@@ -203,9 +204,12 @@ class AuthService
         $maxAttempts = $this->config['security']['rate_limit_attempts'];
 
         $db = Database::getConnection();
+        $dbType = Database::getType();
+
+        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
         $stmt = $db->prepare(
-            'SELECT COUNT(*) as attempts FROM pfme_auth_log
-             WHERE mailbox = ? AND success = 0 AND attempted_at > DATE_SUB(NOW(), INTERVAL ? SECOND)'
+            "SELECT COUNT(*) as attempts FROM pfme_auth_log
+             WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
         $stmt->execute([$mailbox, $window]);
@@ -220,12 +224,16 @@ class AuthService
         $threshold = $this->config['security']['lockout_threshold'];
 
         $db = Database::getConnection();
+        $dbType = Database::getType();
+
+        // Check for recent failed attempts (within one hour)
+        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
         $stmt = $db->prepare(
-            'SELECT COUNT(*) as attempts FROM pfme_auth_log
-             WHERE mailbox = ? AND success = 0 AND attempted_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)'
+            "SELECT COUNT(*) as attempts FROM pfme_auth_log
+             WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
-        $stmt->execute([$mailbox]);
+        $stmt->execute([$mailbox, 3600]); // 3600 seconds = 1 hour
         $result = $stmt->fetch();
 
         if (($result['attempts'] ?? 0) < $threshold) {
@@ -253,9 +261,12 @@ class AuthService
     private function recordFailedAttempt(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 0, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 0, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -268,9 +279,12 @@ class AuthService
     private function recordSuccessfulAuth(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 1, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 1, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -286,9 +300,12 @@ class AuthService
         $maxAttempts = $this->config['security']['rate_limit_attempts'];
 
         $db = Database::getConnection();
+        $dbType = Database::getType();
+
+        $timeComparison = DatabaseHelper::timestampAfterSecondsParam('attempted_at', $dbType);
         $stmt = $db->prepare(
-            'SELECT COUNT(*) as attempts FROM pfme_auth_log
-             WHERE mailbox = ? AND success = 0 AND attempted_at > DATE_SUB(NOW(), INTERVAL ? SECOND)'
+            "SELECT COUNT(*) as attempts FROM pfme_auth_log
+             WHERE mailbox = ? AND success = 0 AND {$timeComparison}"
         );
 
         $stmt->execute([$mailbox, $window]);
@@ -300,9 +317,12 @@ class AuthService
     public function recordFailedRefreshAttempt(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 0, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 0, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -315,9 +335,12 @@ class AuthService
     public function recordSuccessfulRefreshAttempt(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 1, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 1, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -347,9 +370,12 @@ class AuthService
     public function recordFailedPasswordChangeAttempt(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 0, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 0, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -362,9 +388,12 @@ class AuthService
     public function recordSuccessfulPasswordChangeAttempt(string $mailbox): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
-             VALUES (?, 1, ?, ?, NOW())'
+            "INSERT INTO pfme_auth_log (mailbox, success, ip_address, user_agent, attempted_at)
+             VALUES (?, 1, ?, ?, {$now})"
         );
 
         $stmt->execute([
@@ -475,66 +504,116 @@ class AuthService
     private function aggregateAuthLogSummary(int $lagDays): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+        $dateExtractor = DatabaseHelper::extractDate('attempted_at', $dbType);
+        $subtractExpr = DatabaseHelper::subtractSeconds($lagDays * 86400, $dbType);
+        $failCount = DatabaseHelper::sumCase('success = 0', $dbType);
+        $successCount = DatabaseHelper::sumCase('success = 1', $dbType);
 
-        $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
-             SELECT mailbox,
-                    DATE(attempted_at) AS summary_date,
-                    SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS failed_attempts,
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) AS successful_attempts,
-                    NOW(),
-                    NOW()
-               FROM pfme_auth_log
-              WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-              GROUP BY mailbox, DATE(attempted_at)
-             ON DUPLICATE KEY UPDATE
-                    failed_attempts = VALUES(failed_attempts),
-                    successful_attempts = VALUES(successful_attempts),
-                    updated_at = NOW()'
-        );
+        // Database-specific INSERT ... ON DUPLICATE KEY / ON CONFLICT handling
+        if ($dbType === 'postgresql') {
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
+                 SELECT mailbox,
+                        {$dateExtractor} AS summary_date,
+                        {$failCount} AS failed_attempts,
+                        {$successCount} AS successful_attempts,
+                        {$now},
+                        {$now}
+                   FROM pfme_auth_log
+                  WHERE attempted_at < {$subtractExpr}
+                  GROUP BY mailbox, {$dateExtractor}
+                 ON CONFLICT (mailbox, summary_date)
+                 DO UPDATE SET
+                        failed_attempts = EXCLUDED.failed_attempts,
+                        successful_attempts = EXCLUDED.successful_attempts,
+                        updated_at = {$now}"
+            );
+        } elseif ($dbType === 'sqlite') {
+            $stmt = $db->prepare(
+                "INSERT OR REPLACE INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
+                 SELECT mailbox,
+                        {$dateExtractor} AS summary_date,
+                        {$failCount} AS failed_attempts,
+                        {$successCount} AS successful_attempts,
+                        {$now},
+                        {$now}
+                   FROM pfme_auth_log
+                  WHERE attempted_at < {$subtractExpr}
+                  GROUP BY mailbox, {$dateExtractor}"
+            );
+        } else {
+            // MySQL/MariaDB - use ON DUPLICATE KEY UPDATE
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_auth_log_summary (mailbox, summary_date, failed_attempts, successful_attempts, created_at, updated_at)
+                 SELECT mailbox,
+                        {$dateExtractor} AS summary_date,
+                        {$failCount} AS failed_attempts,
+                        {$successCount} AS successful_attempts,
+                        {$now},
+                        {$now}
+                   FROM pfme_auth_log
+                  WHERE attempted_at < {$subtractExpr}
+                  GROUP BY mailbox, {$dateExtractor}
+                 ON DUPLICATE KEY UPDATE
+                        failed_attempts = VALUES(failed_attempts),
+                        successful_attempts = VALUES(successful_attempts),
+                        updated_at = {$now}"
+            );
+        }
 
-        $stmt->execute([$lagDays]);
+        $stmt->execute();
     }
 
     private function deleteOldAuthLogs(int $retentionDays): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $subtractExpr = DatabaseHelper::subtractSeconds($retentionDays * 86400, $dbType);
+
         $stmt = $db->prepare(
-            'DELETE FROM pfme_auth_log
-             WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+            "DELETE FROM pfme_auth_log
+             WHERE attempted_at < {$subtractExpr}"
         );
 
-        $stmt->execute([$retentionDays]);
+        $stmt->execute();
     }
 
     private function archiveOldAuthLogs(int $retentionDays): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+        $subtractExpr = DatabaseHelper::subtractSeconds($retentionDays * 86400, $dbType);
 
         $stmt = $db->prepare(
-            'INSERT INTO pfme_auth_log_archive (mailbox, success, ip_address, user_agent, attempted_at, archived_at)
-             SELECT mailbox, success, ip_address, user_agent, attempted_at, NOW()
+            "INSERT INTO pfme_auth_log_archive (mailbox, success, ip_address, user_agent, attempted_at, archived_at)
+             SELECT mailbox, success, ip_address, user_agent, attempted_at, {$now}
                FROM pfme_auth_log
-              WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+              WHERE attempted_at < {$subtractExpr}"
         );
-        $stmt->execute([$retentionDays]);
+        $stmt->execute();
 
         $stmt = $db->prepare(
-            'DELETE FROM pfme_auth_log
-             WHERE attempted_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+            "DELETE FROM pfme_auth_log
+             WHERE attempted_at < {$subtractExpr}"
         );
-        $stmt->execute([$retentionDays]);
+        $stmt->execute();
     }
 
     private function cleanupArchivedAuthLogs(int $archiveRetentionDays): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $subtractExpr = DatabaseHelper::subtractSeconds($archiveRetentionDays * 86400, $dbType);
+
         $stmt = $db->prepare(
-            'DELETE FROM pfme_auth_log_archive
-             WHERE archived_at < DATE_SUB(NOW(), INTERVAL ? DAY)'
+            "DELETE FROM pfme_auth_log_archive
+             WHERE archived_at < {$subtractExpr}"
         );
 
-        $stmt->execute([$archiveRetentionDays]);
+        $stmt->execute();
     }
 
     public function getDomainFromMailbox(string $mailbox): ?string

@@ -5,6 +5,7 @@ namespace Pfme\Api\Services;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Pfme\Api\Core\Database;
+use Pfme\Api\Core\DatabaseHelper;
 
 /**
  * Token Service - handles JWT creation and validation
@@ -156,9 +157,12 @@ class TokenService
         $tokenHash = hash('sha256', $token);
 
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $timeComparison = DatabaseHelper::timestampAfterNow('expires_at', $dbType);
+
         $stmt = $db->prepare(
-            'SELECT * FROM pfme_refresh_tokens
-             WHERE token = ? AND expires_at > NOW() AND revoked_at IS NULL'
+            "SELECT * FROM pfme_refresh_tokens
+             WHERE token = ? AND {$timeComparison} AND revoked_at IS NULL"
         );
 
         $stmt->execute([$tokenHash]);
@@ -176,15 +180,19 @@ class TokenService
     {
         $oldTokenHash = hash('sha256', $oldToken);
         $db = Database::getConnection();
+        $dbType = Database::getType();
 
         // Verify old token is still valid or within grace period
+        $nowComparison = DatabaseHelper::timestampAfterNow('expires_at', $dbType);
+        $gracePeriodComparison = DatabaseHelper::timestampAfterSecondsParam('expires_at', $dbType);
+
         $stmt = $db->prepare(
-            'SELECT * FROM pfme_refresh_tokens
+            "SELECT * FROM pfme_refresh_tokens
              WHERE token = ? AND revoked_at IS NULL
              AND (
-                expires_at > NOW()
-                OR expires_at > DATE_SUB(NOW(), INTERVAL ? SECOND)
-             )'
+                {$nowComparison}
+                OR {$gracePeriodComparison}
+             )"
         );
 
         $gracePeriod = $this->config['jwt']['refresh_token_grace_period'];
@@ -228,26 +236,26 @@ class TokenService
         $newTokenHash = hash('sha256', $newToken);
         $expiresAt = time() + $this->config['jwt']['refresh_token_ttl'];
         $familyId = $oldTokenData['family_id'] ?: $oldTokenHash; // Use old token hash as family ID if not set
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
 
         $stmt = $db->prepare(
-            'INSERT INTO pfme_refresh_tokens
+            "INSERT INTO pfme_refresh_tokens
              (token, mailbox, expires_at, created_at, last_used_at, family_id, rotated_from)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
+             VALUES (?, ?, ?, {$now}, {$now}, ?, ?)"
         );
 
         $stmt->execute([
             $newTokenHash,
             $mailbox,
-            date('Y-m-d H:i:s', $expiresAt),
-            date('Y-m-d H:i:s'),
-            date('Y-m-d H:i:s'),
+            DatabaseHelper::formatTimestamp($expiresAt, $dbType),
             $familyId,
             $oldTokenHash,
         ]);
 
         // Mark old token as rotated (keep it valid during grace period)
         $stmt = $db->prepare(
-            'UPDATE pfme_refresh_tokens SET rotated_to = ?, rotated_at = NOW() WHERE token = ?'
+            "UPDATE pfme_refresh_tokens SET rotated_to = ?, rotated_at = {$now} WHERE token = ?"
         );
         $stmt->execute([$newTokenHash, $oldTokenHash]);
 
@@ -260,16 +268,18 @@ class TokenService
     private function extendRefreshTokenExpiry(string $tokenHash): void
     {
         $newExpiry = time() + $this->config['jwt']['refresh_token_ttl'];
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
 
         $db = Database::getConnection();
         $stmt = $db->prepare(
-            'UPDATE pfme_refresh_tokens
-             SET expires_at = ?, last_used_at = NOW()
-             WHERE token = ?'
+            "UPDATE pfme_refresh_tokens
+             SET expires_at = ?, last_used_at = {$now}
+             WHERE token = ?"
         );
 
         $stmt->execute([
-            date('Y-m-d H:i:s', $newExpiry),
+            DatabaseHelper::formatTimestamp($newExpiry, $dbType),
             $tokenHash,
         ]);
     }
@@ -290,10 +300,13 @@ class TokenService
     private function revokeTokenFamily(string $familyId): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
         $stmt = $db->prepare(
-            'UPDATE pfme_refresh_tokens
-             SET revoked_at = NOW()
-             WHERE family_id = ? AND revoked_at IS NULL'
+            "UPDATE pfme_refresh_tokens
+             SET revoked_at = {$now}
+             WHERE family_id = ? AND revoked_at IS NULL"
         );
         $stmt->execute([$familyId]);
     }
@@ -301,10 +314,12 @@ class TokenService
     public function revokeRefreshToken(string $token): void
     {
         $tokenHash = hash('sha256', $token);
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
 
         $db = Database::getConnection();
         $stmt = $db->prepare(
-            'UPDATE pfme_refresh_tokens SET revoked_at = NOW() WHERE token = ?'
+            "UPDATE pfme_refresh_tokens SET revoked_at = {$now} WHERE token = ?"
         );
 
         $stmt->execute([$tokenHash]);
@@ -313,10 +328,25 @@ class TokenService
     public function revokeAccessToken(string $jti): void
     {
         $db = Database::getConnection();
-        $stmt = $db->prepare(
-            'INSERT INTO pfme_revoked_tokens (jti, revoked_at) VALUES (?, NOW())
-             ON DUPLICATE KEY UPDATE revoked_at = NOW()'
-        );
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
+        if ($dbType === 'postgresql') {
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_revoked_tokens (jti, revoked_at) VALUES (?, {$now})
+                 ON CONFLICT (jti) DO UPDATE SET revoked_at = {$now}"
+            );
+        } elseif ($dbType === 'sqlite') {
+            $stmt = $db->prepare(
+                "INSERT OR REPLACE INTO pfme_revoked_tokens (jti, revoked_at) VALUES (?, {$now})"
+            );
+        } else {
+            // MySQL/MariaDB
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_revoked_tokens (jti, revoked_at) VALUES (?, {$now})
+                 ON DUPLICATE KEY UPDATE revoked_at = {$now}"
+            );
+        }
 
         $stmt->execute([$jti]);
     }
@@ -375,11 +405,29 @@ class TokenService
     private function recordPasswordChange(string $mailbox): void
     {
         $db = Database::getConnection();
-        $stmt = $db->prepare(
-            'INSERT INTO pfme_mailbox_security (mailbox, password_changed_at, updated_at)
-             VALUES (?, NOW(), NOW())
-             ON DUPLICATE KEY UPDATE password_changed_at = NOW(), updated_at = NOW()'
-        );
+        $dbType = Database::getType();
+        $now = DatabaseHelper::now($dbType);
+
+        if ($dbType === 'postgresql') {
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_mailbox_security (mailbox, password_changed_at, updated_at)
+                 VALUES (?, {$now}, {$now})
+                 ON CONFLICT (mailbox) DO UPDATE SET password_changed_at = {$now}, updated_at = {$now}"
+            );
+        } elseif ($dbType === 'sqlite') {
+            $stmt = $db->prepare(
+                "INSERT OR REPLACE INTO pfme_mailbox_security (mailbox, password_changed_at, updated_at)
+                 VALUES (?, {$now}, {$now})"
+            );
+        } else {
+            // MySQL/MariaDB
+            $stmt = $db->prepare(
+                "INSERT INTO pfme_mailbox_security (mailbox, password_changed_at, updated_at)
+                 VALUES (?, {$now}, {$now})
+                 ON DUPLICATE KEY UPDATE password_changed_at = {$now}, updated_at = {$now}"
+            );
+        }
+
         $stmt->execute([$mailbox]);
     }
 
@@ -391,12 +439,14 @@ class TokenService
     public function cleanupExpiredTokens(): void
     {
         $db = Database::getConnection();
+        $dbType = Database::getType();
+        $timeComparison = DatabaseHelper::timestampBeforeNow('expires_at', $dbType);
 
         // Clean up expired refresh tokens
-        $db->exec('DELETE FROM pfme_refresh_tokens WHERE expires_at < NOW()');
+        $db->exec("DELETE FROM pfme_refresh_tokens WHERE {$timeComparison}");
 
         // Clean up old revoked access tokens (keep for 7 days after expiry)
-        $cutoff = date('Y-m-d H:i:s', time() - (7 * 86400));
+        $cutoff = DatabaseHelper::formatTimestamp(time() - (7 * 86400), $dbType);
         $db->prepare('DELETE FROM pfme_revoked_tokens WHERE revoked_at < ?')->execute([$cutoff]);
     }
 }

@@ -3,14 +3,28 @@
  * PostfixMe API Configuration
  *
  * This file loads configuration from environment variables,
- * following the existing Docker secret pattern (*_FILE -> /run/secrets/...)
+ * supporting multiple database platforms (MySQL, MariaDB, PostgreSQL, SQLite)
+ * via the POSTFIXADMIN_DB_TYPE environment variable.
+ *
+ * The database type is controlled via Docker Compose environment variables.
  */
 
 return [
     'database' => [
+        // Database type: 'mysql' (default), 'mariadb', 'postgresql', or 'sqlite'
+        'type' => getenv('POSTFIXADMIN_DB_TYPE') ?: 'mysql',
+
+        // MySQL/MariaDB/PostgreSQL connection settings
         'host' => getenv('POSTFIXADMIN_DB_HOST') ?: 'db',
-        'port' => getenv('POSTFIXADMIN_DB_PORT') ?: '3306',
+        'port' => getenv('POSTFIXADMIN_DB_PORT') ?: (
+            (getenv('POSTFIXADMIN_DB_TYPE') === 'postgresql') ? '5432' : '3306'
+        ),
         'name' => getenv('POSTFIXADMIN_DB_NAME') ?: 'postfixadmin',
+
+        // SQLite database file path (for SQLite only)
+        'path' => getenv('POSTFIXADMIN_DB_PATH') ?: '/var/lib/postfixadmin/postfixadmin.db',
+
+        // Secret files for credentials (not used by SQLite)
         'user_file' => getenv('POSTFIXADMIN_DB_USER_FILE') ?: '/run/secrets/postfixadmin_db_user',
         'password_file' => getenv('POSTFIXADMIN_DB_PASSWORD_FILE') ?: '/run/secrets/postfixadmin_db_password',
     ],
