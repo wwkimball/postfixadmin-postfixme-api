@@ -26,9 +26,8 @@ The database platform is controlled via the **`POSTFIXADMIN_DB_TYPE`** environme
 
 #### Supported Values
 
-- `mysql` - MySQL/MariaDB (default, port 3306)
-- `mariadb` - Alias for MySQL/MariaDB
-- `postgresql` - PostgreSQL (port 5432)
+- `mysqli` - MySQL/MariaDB (default, port 3306)
+- `pgsql` - PostgreSQL (port 5432)
 - `sqlite` - SQLite file-based database
 
 ### Environment Variable Configuration
@@ -36,7 +35,7 @@ The database platform is controlled via the **`POSTFIXADMIN_DB_TYPE`** environme
 #### For MySQL/MariaDB
 
 ```bash
-POSTFIXADMIN_DB_TYPE=mysql
+POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_HOST=database
 POSTFIXADMIN_DB_PORT=3306
 POSTFIXADMIN_DB_NAME=postfixadmin
@@ -49,7 +48,7 @@ POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
 #### For PostgreSQL
 
 ```bash
-POSTFIXADMIN_DB_TYPE=postgresql
+POSTFIXADMIN_DB_TYPE=pgsql
 POSTFIXADMIN_DB_HOST=database
 POSTFIXADMIN_DB_PORT=5432
 POSTFIXADMIN_DB_NAME=postfixadmin
@@ -166,7 +165,7 @@ services:
 
   pfme-api:
     environment:
-      POSTFIXADMIN_DB_TYPE: postgresql
+      POSTFIXADMIN_DB_TYPE: pgsql
       POSTFIXADMIN_DB_HOST: database
       POSTFIXADMIN_DB_PORT: 5432
       POSTFIXADMIN_DB_NAME: postfixadmin
@@ -182,7 +181,7 @@ For high-availability enterprise deployments:
 services:
   pfme-api:
     environment:
-      POSTFIXADMIN_DB_TYPE: mysql
+      POSTFIXADMIN_DB_TYPE: mysqli
       POSTFIXADMIN_DB_HOST: mysql.company.com
       POSTFIXADMIN_DB_PORT: 3306
       POSTFIXADMIN_DB_NAME: postfixadmin
@@ -318,7 +317,7 @@ For platform-specific troubleshooting:
 ## Configuration Files
 
 - **Base config**: `docker/.env.postfixadmin`
-  - `POSTFIXADMIN_DB_TYPE=mysql` (default for all stages)
+  - `POSTFIXADMIN_DB_TYPE=mysqli` (default for all stages)
 
 - **Stage-specific configs**:
   - `docker/.env.postfixadmin.development`
