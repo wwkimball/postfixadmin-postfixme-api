@@ -29,11 +29,13 @@ SQLite is a file-based, embedded database with unique characteristics:
 - **Simpler Operations:** No separate server process or connection pooling
 
 **Recommended Use Cases:**
+
 - Development and testing environments
 - Single-user or low-concurrency applications
 - Embedded or mobile applications (iOS PostfixMe app uses SQLite for local caching)
 
 **Not Recommended For:**
+
 - High-traffic production deployments
 - Applications requiring concurrent writes
 - Multi-server or distributed architectures
@@ -68,11 +70,13 @@ CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_rotated_from ON pfme_refresh_
 ```
 
 **Purpose:**
+
 - Maintains long-lived refresh tokens for client authentication
 - Supports token rotation chains via `family_id` for detecting token reuse attacks
 - Tracks token lifecycle from creation through rotation to revocation
 
 **Key Columns:**
+
 - `token`: 64-character unique token identifier (SHA-256 hash)
 - `mailbox`: The email address (mailbox) associated with this token
 - `expires_at`: Token expiration timestamp in ISO 8601 format (e.g., '2026-02-23 12:34:56')
@@ -85,11 +89,13 @@ CREATE INDEX IF NOT EXISTS idx_pfme_refresh_tokens_rotated_from ON pfme_refresh_
 - `rotated_at`: Timestamp when this token was rotated
 
 **Security Features:**
+
 - Token rotation creates new tokens and invalidates old ones
 - Family tracking enables detection of token reuse (replay attacks)
 - Explicit revocation support for logout and security events
 
 **SQLite Notes:**
+
 - Timestamps stored as TEXT in ISO 8601 format ('YYYY-MM-DD HH:MM:SS')
 - Use `datetime()` function for timestamp comparisons
 - Token size limited to 64 characters (sufficient for SHA-256 hex encoding)
@@ -108,15 +114,18 @@ CREATE INDEX IF NOT EXISTS idx_pfme_revoked_tokens_revoked_at ON pfme_revoked_to
 ```
 
 **Purpose:**
+
 - Blacklists access tokens that have been explicitly revoked
 - Enables immediate token invalidation without waiting for natural expiration
 - Supports security events like forced logout or compromised token detection
 
 **Key Columns:**
+
 - `jti`: JWT ID claim from the access token (unique identifier, max 32 characters)
 - `revoked_at`: Timestamp when the token was revoked (ISO 8601 format)
 
 **Maintenance:**
+
 - Old entries (revoked tokens past their expiration time) should be periodically purged
 - Recommended retention: 24 hours past the maximum access token TTL
 - Default access token TTL: 900 seconds (15 minutes)
@@ -141,12 +150,14 @@ CREATE INDEX IF NOT EXISTS idx_pfme_auth_log_success ON pfme_auth_log (success);
 ```
 
 **Purpose:**
+
 - Maintains comprehensive audit trail of authentication events
 - Supports rate limiting by tracking failed login attempts
 - Enables account lockout protection after repeated failures
 - Provides forensic data for security investigations
 
 **Key Columns:**
+
 - `mailbox`: The email address attempting authentication
 - `success`: Boolean stored as INTEGER (0=false, 1=true)
 - `ip_address`: Client IP address (IPv4 or IPv6, max 45 characters)
@@ -154,15 +165,18 @@ CREATE INDEX IF NOT EXISTS idx_pfme_auth_log_success ON pfme_auth_log (success);
 - `attempted_at`: Timestamp of the authentication attempt (ISO 8601 format)
 
 **Rate Limiting:**
+
 - Tracks failed attempts within a configurable time window
 - Default: 5 failed attempts in 300 seconds (5 minutes) triggers rate limiting
 - Default: 10 failed attempts triggers account lockout for 1800 seconds (30 minutes)
 
 **Maintenance:**
+
 - This table can grow large over time and should be archived periodically
 - See `pfme_auth_log_archive` and `pfme_auth_log_summary` for archival strategy
 
 **SQLite Notes:**
+
 - Boolean values represented as INTEGER (0 or 1)
 - Use `WHERE success = 0` for failed attempts, `success = 1` for successful
 
@@ -186,11 +200,13 @@ CREATE INDEX IF NOT EXISTS idx_pfme_auth_log_summary_date ON pfme_auth_log_summa
 ```
 
 **Purpose:**
+
 - Provides daily aggregated authentication statistics
 - Enables efficient historical reporting without scanning full audit log
 - Reduces storage requirements by summarizing old log entries
 
 **Key Columns:**
+
 - `mailbox`: The email address for this summary
 - `summary_date`: The date this summary covers (DATE format: 'YYYY-MM-DD')
 - `failed_attempts`: Total failed authentication attempts on this date
@@ -199,11 +215,13 @@ CREATE INDEX IF NOT EXISTS idx_pfme_auth_log_summary_date ON pfme_auth_log_summa
 - `updated_at`: Timestamp of the last update to this summary
 
 **Maintenance:**
+
 - Summary records are created/updated by a maintenance script
 - Typically run daily to summarize previous day's authentication activity
 - See deployment documentation for scheduling maintenance tasks
 
 **SQLite Notes:**
+
 - Date stored as TEXT in 'YYYY-MM-DD' format
 - Use `date()` function for date operations
 - UNIQUE constraint enforces one summary per mailbox per day
@@ -230,15 +248,18 @@ CREATE INDEX IF NOT EXISTS idx_pfme_auth_log_archive_archived ON pfme_auth_log_a
 ```
 
 **Purpose:**
+
 - Archives historical authentication log entries
 - Preserves detailed audit trail while keeping active log table lean
 - Supports long-term forensic investigations and compliance requirements
 
 **Key Columns:**
+
 - Same schema as `pfme_auth_log` with addition of:
 - `archived_at`: Timestamp when the log entry was moved to archive (ISO 8601)
 
 **Maintenance:**
+
 - Entries are moved from `pfme_auth_log` to archive by maintenance script
 - Recommended: Archive entries older than 90 days
 - Archive retention policy should match organizational compliance requirements
@@ -258,16 +279,19 @@ CREATE INDEX IF NOT EXISTS idx_pfme_mailbox_security_password_changed ON pfme_ma
 ```
 
 **Purpose:**
+
 - Records when mailbox passwords are changed
 - Enables token validation to reject access tokens issued before password change
 - Provides additional security layer beyond token expiration
 
 **Key Columns:**
+
 - `mailbox`: The email address (primary key)
 - `password_changed_at`: Timestamp of the most recent password change (ISO 8601)
 - `updated_at`: Timestamp when this record was last updated (ISO 8601)
 
 **Usage:**
+
 - Updated whenever a user changes their password
 - Access token validation checks if token was issued before `password_changed_at`
 - Forces re-authentication after password change without explicit token revocation
@@ -283,11 +307,13 @@ SQLite uses a dynamic type system with type affinity. The declared types guide s
 - **NULL:** Null value
 
 **Type Affinity Rules:**
+
 - Columns with `INTEGER PRIMARY KEY` are aliased to the ROWID (fast)
 - TEXT affinity for columns without numeric types
 - No separate DATE or DATETIME types (use TEXT, REAL, or INTEGER)
 
 **Recommended Date/Time Storage:**
+
 - **TEXT:** ISO 8601 strings ('YYYY-MM-DD HH:MM:SS')
 - **REAL:** Julian day numbers
 - **INTEGER:** Unix timestamps (seconds since 1970-01-01)
@@ -388,6 +414,7 @@ Recommended frequency: Daily
 SQLite database security relies on file system permissions:
 
 **Development/Single-User:**
+
 ```bash
 # Database file permissions (owner read/write only)
 chmod 600 /path/to/postfixadmin.db
@@ -397,6 +424,7 @@ chmod 700 /path/to/database/directory
 ```
 
 **Multi-User (Apache/Nginx):**
+
 ```bash
 # Database owned by web server user
 chown www-data:www-data /path/to/postfixadmin.db
@@ -408,6 +436,7 @@ chmod 770 /path/to/database/directory
 ```
 
 **Important:**
+
 - The directory containing the database must be writable (SQLite creates temporary files)
 - Never place the database in a web-accessible directory
 - Use file system encryption for sensitive data at rest
@@ -432,6 +461,7 @@ Indexes optimize query performance:
    - Time-based cleanup
 
 **SQLite Indexing Notes:**
+
 - `PRIMARY KEY` automatically creates a unique index
 - `UNIQUE` constraints automatically create indexes
 - Additional indexes must be created explicitly
@@ -442,43 +472,52 @@ Indexes optimize query performance:
 SQLite has different performance characteristics than server-based databases:
 
 **Optimization Tips:**
+
 1. **Write-Ahead Logging (WAL):** Enable for better concurrency
+
    ```sql
    PRAGMA journal_mode=WAL;
    ```
 
 2. **Synchronous Mode:** Adjust for performance vs. durability tradeoff
+
    ```sql
    PRAGMA synchronous=NORMAL;  -- Good balance
    -- PRAGMA synchronous=OFF;  -- Faster but risk of corruption
    ```
 
 3. **Cache Size:** Increase for better performance
+
    ```sql
    PRAGMA cache_size=-64000;  -- 64MB cache
    ```
 
 4. **Page Size:** Set before creating tables (default 4096)
+
    ```sql
    PRAGMA page_size=4096;
    ```
 
 5. **Temp Store:** Use memory for temporary tables
+
    ```sql
    PRAGMA temp_store=MEMORY;
    ```
 
 6. **Foreign Keys:** Enable if using foreign key constraints
+
    ```sql
    PRAGMA foreign_keys=ON;
    ```
 
 **Transaction Best Practices:**
+
 - Group multiple writes in a single transaction
 - Explicit transactions are much faster than auto-commit
 - Use `BEGIN IMMEDIATE` to avoid upgrade locks
 
 **VACUUM:**
+
 - Run periodically to reclaim space after DELETEs
 - Use `VACUUM INTO` to create a compacted copy
 - Enable `auto_vacuum` for automatic space reclamation
@@ -519,6 +558,7 @@ PRAGMA compile_options;
 ```
 
 Look for:
+
 - `ENABLE_STAT4` (better query optimization)
 - `ENABLE_FTS5` (full-text search)
 - `ENABLE_JSON1` (JSON functions)
@@ -548,6 +588,7 @@ sqlite> -- Create tables...
 ```
 
 In PHP PDO:
+
 ```php
 $pdo = new PDO('sqlite:/path/to/postfixadmin.db');
 $pdo->exec("PRAGMA key = 'your-encryption-key'");
@@ -558,23 +599,27 @@ $pdo->exec("PRAGMA key = 'your-encryption-key'");
 SQLite is excellent for many use cases but has limitations:
 
 **Concurrency:**
+
 - Single writer at a time (readers can be concurrent with WAL mode)
 - Not suitable for high write-concurrency applications
 - Write timeout/busy handler should be configured
 
 **Data Types:**
+
 - Flexible typing can lead to data inconsistencies if not careful
 - No native boolean, date, or time types
 - Maximum database size: 281 TB (practical limit around 1 TB)
 - Maximum row size: 1 GB
 
 **Features:**
+
 - No stored procedures or triggers (limited trigger support)
 - No RIGHT JOIN or FULL OUTER JOIN
 - Limited ALTER TABLE support (cannot drop columns in older versions)
 - No user management or network access
 
 **Best Practices:**
+
 - Use CHECK constraints to enforce data types
 - Always use prepared statements
 - Enable foreign key constraints if needed
@@ -619,6 +664,7 @@ PRAGMA busy_timeout = 10000;  -- 10 seconds
 ```
 
 In PHP:
+
 ```php
 $pdo->exec('PRAGMA busy_timeout = 10000');
 ```
@@ -746,7 +792,9 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+```text
+http://www.apache.org/licenses/LICENSE-2.0
+```
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,

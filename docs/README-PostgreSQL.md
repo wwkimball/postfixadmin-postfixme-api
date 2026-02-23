@@ -48,11 +48,13 @@ CREATE INDEX idx_pfme_refresh_tokens_rotated_from ON pfme_refresh_tokens (rotate
 ```
 
 **Purpose:**
+
 - Maintains long-lived refresh tokens for client authentication
 - Supports token rotation chains via `family_id` for detecting token reuse attacks
 - Tracks token lifecycle from creation through rotation to revocation
 
 **Key Columns:**
+
 - `token`: 64-character unique token identifier (SHA-256 hash)
 - `mailbox`: The email address (mailbox) associated with this token
 - `expires_at`: Token expiration timestamp (default: 5 years from creation)
@@ -65,6 +67,7 @@ CREATE INDEX idx_pfme_refresh_tokens_rotated_from ON pfme_refresh_tokens (rotate
 - `rotated_at`: Timestamp when this token was rotated
 
 **Security Features:**
+
 - Token rotation creates new tokens and invalidates old ones
 - Family tracking enables detection of token reuse (replay attacks)
 - Explicit revocation support for logout and security events
@@ -83,15 +86,18 @@ CREATE INDEX idx_pfme_revoked_tokens_revoked_at ON pfme_revoked_tokens (revoked_
 ```
 
 **Purpose:**
+
 - Blacklists access tokens that have been explicitly revoked
 - Enables immediate token invalidation without waiting for natural expiration
 - Supports security events like forced logout or compromised token detection
 
 **Key Columns:**
+
 - `jti`: JWT ID claim from the access token (unique identifier)
 - `revoked_at`: Timestamp when the token was revoked
 
 **Maintenance:**
+
 - Old entries (revoked tokens past their expiration time) should be periodically purged
 - Recommended retention: 24 hours past the maximum access token TTL
 - Default access token TTL: 900 seconds (15 minutes)
@@ -116,12 +122,14 @@ CREATE INDEX idx_pfme_auth_log_success ON pfme_auth_log (success);
 ```
 
 **Purpose:**
+
 - Maintains comprehensive audit trail of authentication events
 - Supports rate limiting by tracking failed login attempts
 - Enables account lockout protection after repeated failures
 - Provides forensic data for security investigations
 
 **Key Columns:**
+
 - `mailbox`: The email address attempting authentication
 - `success`: Boolean indicating whether authentication succeeded
 - `ip_address`: Client IP address (IPv4 or IPv6, max 45 characters)
@@ -129,11 +137,13 @@ CREATE INDEX idx_pfme_auth_log_success ON pfme_auth_log (success);
 - `attempted_at`: Timestamp of the authentication attempt
 
 **Rate Limiting:**
+
 - Tracks failed attempts within a configurable time window
 - Default: 5 failed attempts in 300 seconds (5 minutes) triggers rate limiting
 - Default: 10 failed attempts triggers account lockout for 1800 seconds (30 minutes)
 
 **Maintenance:**
+
 - This table can grow large over time and should be archived periodically
 - See `pfme_auth_log_archive` and `pfme_auth_log_summary` for archival strategy
 
@@ -157,11 +167,13 @@ CREATE INDEX idx_pfme_auth_log_summary_date ON pfme_auth_log_summary (summary_da
 ```
 
 **Purpose:**
+
 - Provides daily aggregated authentication statistics
 - Enables efficient historical reporting without scanning full audit log
 - Reduces storage requirements by summarizing old log entries
 
 **Key Columns:**
+
 - `mailbox`: The email address for this summary
 - `summary_date`: The date this summary covers
 - `failed_attempts`: Total failed authentication attempts on this date
@@ -170,6 +182,7 @@ CREATE INDEX idx_pfme_auth_log_summary_date ON pfme_auth_log_summary (summary_da
 - `updated_at`: Timestamp of the last update to this summary
 
 **Maintenance:**
+
 - Summary records are created/updated by a maintenance script
 - Typically run daily to summarize previous day's authentication activity
 - See deployment documentation for scheduling maintenance tasks
@@ -196,15 +209,18 @@ CREATE INDEX idx_pfme_auth_log_archive_archived ON pfme_auth_log_archive (archiv
 ```
 
 **Purpose:**
+
 - Archives historical authentication log entries
 - Preserves detailed audit trail while keeping active log table lean
 - Supports long-term forensic investigations and compliance requirements
 
 **Key Columns:**
+
 - Same schema as `pfme_auth_log` with addition of:
 - `archived_at`: Timestamp when the log entry was moved to archive
 
 **Maintenance:**
+
 - Entries are moved from `pfme_auth_log` to archive by maintenance script
 - Recommended: Archive entries older than 90 days
 - Archive retention policy should match organizational compliance requirements
@@ -224,16 +240,19 @@ CREATE INDEX idx_pfme_mailbox_security_password_changed ON pfme_mailbox_security
 ```
 
 **Purpose:**
+
 - Records when mailbox passwords are changed
 - Enables token validation to reject access tokens issued before password change
 - Provides additional security layer beyond token expiration
 
 **Key Columns:**
+
 - `mailbox`: The email address (primary key)
 - `password_changed_at`: Timestamp of the most recent password change
 - `updated_at`: Timestamp when this record was last updated
 
 **Usage:**
+
 - Updated whenever a user changes their password
 - Access token validation checks if token was issued before `password_changed_at`
 - Forces re-authentication after password change without explicit token revocation
@@ -417,12 +436,14 @@ ON pfme_auth_log_archive USING BRIN (attempted_at);
 ### Enabling SSL Connections
 
 In `pg_hba.conf`:
-```
+
+```text
 hostssl all all 0.0.0.0/0 md5
 ```
 
 In PostgreSQL configuration:
-```
+
+```text
 ssl = on
 ssl_cert_file = '/path/to/server.crt'
 ssl_key_file = '/path/to/server.key'
@@ -454,13 +475,14 @@ CREATE INDEX idx_pfme_auth_log_fts ON pfme_auth_log USING GIN (user_agent_vector
 
 If migrating from MySQL to PostgreSQL:
 
-1. Use `pg_loader` or similar tool for bulk data migration
-2. Convert schema differences (data types, indexes)
-3. Rewrite any MySQL-specific syntax in stored procedures
-4. Test all queries for PostgreSQL compatibility
-5. Adjust application code to use PostgreSQL PDO driver
+- Use `pg_loader` or similar tool for bulk data migration
+- Convert schema differences (data types, indexes)
+- Rewrite any MySQL-specific syntax in stored procedures
+- Test all queries for PostgreSQL compatibility
+- Adjust application code to use PostgreSQL PDO driver
 
 Key differences to address:
+
 - `AUTO_INCREMENT` → `SERIAL` or `BIGSERIAL`
 - `DATETIME` → `TIMESTAMP WITHOUT TIME ZONE`
 - `BOOLEAN` values: `0/1` → `FALSE/TRUE`
@@ -528,7 +550,9 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+```text
+http://www.apache.org/licenses/LICENSE-2.0
+```
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
