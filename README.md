@@ -1,38 +1,48 @@
 # PostfixMe API
 
-Mobile-friendly REST API for PostfixAdmin alias management.
+Mobile-friendly REST API for [PostfixAdmin](https://github.com/postfixadmin/postfixadmin) alias and mailbox password
+management.  This API was originally developed to support the PostfixMe mobile app but can be used by others.
+
+This is a container-based overlay for the [PostfixAdmin Docker image](https://hub.docker.com/_/postfixadmin), not an
+extension.
 
 ## Overview
 
-The PostfixMe API provides a secure JSON REST interface that allows mobile applications to manage email aliases through PostfixAdmin's database. It integrates directly with PostfixAdmin's password verification and configuration.
+The PostfixMe API provides a secure JSON REST interface that allows mobile applications to manage email aliases and
+mailbox passwords for individual users through PostfixAdmin's database.  It directly utilizes PostfixAdmin's password
+verification and configuration code.  This does **not** extend all of the capabilities of PostfixAdmin.  Rather, this
+API enables end-users to self-manage their own mailbox aliases and mailbox passwords via mobile app, taking such load
+off of your mail server administrator(s).
 
 ## Features
 
-- **Authentication**: JWT-based (RS256) with access and refresh tokens
-- **Security**: TLS enforcement, rate limiting, account lockout protection
-- **Alias Management**: Create, read, update, delete email aliases
-- **Scoped Access**: Users can only manage aliases that forward to their mailbox
-- **Pagination**: Built-in pagination support for alias listings
-- **Audit Logging**: All authentication attempts are logged
+- **Authentication**:  JWT-based (RS256) with access and refresh tokens
+- **Security**:  TLS enforcement, rate limiting, account lockout protection
+- **Alias Management**:  Create, read, update, delete email aliases
+- **Mailbox Password Management**:  Users can change their own mailbox password with adherence to
+  administrator-specified password rules
+- **Scoped Alias Access**:  Users can only manage aliases that forward to their own mailbox
+- **Pagination**:  Built-in pagination support for alias listings
+- **Audit Logging**:  All authentication attempts are logged
 
 ## Requirements
 
 - PHP 8.1 or higher
-- PostfixAdmin database (MySQL/MariaDB)
+- PostfixAdmin database (PostgreSQL, MySQL/MariaDB, or SQLite)
 - OpenSSL extension
 - PDO extension
 
 ## Installation
 
-The PostfixMe API is designed for Docker deployment.  Dependency installation and configuration are handled by the Docker build and deployment process.  JWT key generation and secret setup must be completed before deployment.
+The PostfixMe API is intended for container-based deployment.  Environment variables, JWT key generation, and other
+secret setup must be completed before deployment.
 
-For installation and deployment instructions, refer to your deployment environment's documentation.
-
-Manual installation outside of Docker is not supported, though you are welcome to try.
+Manual installation outside of containers is not supported, though it should be reasonably simple to accomplish with
+sufficient investment in automation scripts.
 
 ## Configuration
 
-The API uses environment variables for configuration. All secrets follow the `*_FILE` pattern pointing to `/run/secrets/...`
+The API uses environment variables for configuration.  All secrets follow the `*_FILE` pattern.
 
 ### Required Environment Variables
 
@@ -286,7 +296,7 @@ Update an existing alias.
 }
 ```
 
-All fields are optional. Provide only fields to update.
+All fields are optional.  Provide only fields to update.
 
 **Response (200):** Same format as create response.
 
@@ -332,13 +342,16 @@ Common error codes:
 
 ### Testing
 
-Unit tests are located in `tests/Unit/` and use PHPUnit. The test suite validates API endpoints, authentication logic, database operations, and security controls.
+Unit tests are located in `tests/Unit/` and use PHPUnit.  The test suite validates API endpoints, authentication logic,
+database operations, and security controls.
 
-When integrating this API into a Docker-based environment, tests can be run in a dedicated test container with all development dependencies.
+When integrating this API into a container-based environment, tests should be run in a dedicated test container with all
+development dependencies.
 
 ### Code Quality
 
-The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to maintain quality standards. Configure these tools in your development environment as needed.
+The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to maintain quality standards.  Configure
+these tools in your development environment as needed.
 
 ### Development Notes
 
@@ -366,16 +379,20 @@ For complete schema documentation including table structures, indexes, and migra
 
 ## Security Considerations
 
-1. **TLS Only**: The API enforces TLS by default. Only disable for local development.
-2. **Trusted Proxies**: Configure `TRUSTED_PROXY_CIDR` to validate TLS headers from reverse proxies.
-3. **Rate Limiting**: Failed authentication attempts are rate-limited per mailbox.
-4. **Account Lockout**: Accounts are temporarily locked after excessive failures.
-5. **Token Revocation**: Both access and refresh tokens support server-side revocation.
-6. **Audit Logging**: All authentication attempts are logged with IP and user agent.
+1. **TLS Only**:  The API enforces TLS by default.  Only disable for local development.
+2. **Trusted Proxies**:  Configure `TRUSTED_PROXY_CIDR` to validate TLS headers from reverse proxies.
+3. **Rate Limiting**:  Failed authentication attempts are rate-limited per mailbox.
+4. **Account Lockout**:  Accounts are temporarily locked after excessive failures.
+5. **Token Revocation**:  Both access and refresh tokens support server-side revocation.
+6. **Audit Logging**:  All authentication attempts are logged with IP and user agent.
 
 ## Auth Log Retention & Privacy
 
-PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation). Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.
+PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation).
+Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.  To balance the need for a
+high degree of specificity during security incident response with user privacy concerns, these logs are anonymized after
+a configurable timespan and fully deleted after another timespan provided you implement the necessary scheduler and
+cleansing script, which is documented in detail in the `docs/` directory.
 
 **Defaults**:
 
@@ -387,16 +404,18 @@ PostfixMe logs authentication attempts to protect accounts (rate limiting, locko
 
 **Behavior**:
 
-- **Summary**: Stores only mailbox + daily counts (no IP or user agent).
-- **Retention**: Deletes detailed logs older than the retention window.
-- **Archive (optional)**: Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by its own retention window.
+- **Summary**:  Stores only mailbox + daily counts (no IP or user agent).
+- **Retention**:  Deletes detailed logs older than the retention window.
+- **Archive (optional)**:  Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by
+  its own retention window.
 
 **Compliance guidance** (confirm with your compliance team):
 
-- **GDPR**: No fixed retention; use data minimization (typical 30–90 days detailed logs).
-- **PCI DSS**: 12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
-- **HIPAA**: No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
-- **SOC 2 / ISO 27001**: No prescriptive duration; adopt a documented policy (often 90–180 days detailed + summaries long-term).
+- **GDPR**:  No fixed retention; use data minimization (typical 30–90 days detailed logs).
+- **PCI DSS**:  12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
+- **HIPAA**:  No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
+- **SOC 2 / ISO 27001**:  No prescriptive duration; adopt a documented policy (often 90–180 days detailed + summaries
+  long-term).
 
 ## License
 
@@ -404,4 +423,5 @@ PostfixMe API is free software licensed under the GNU General Public License v2 
 
 Copyright (c) 2026 William Kimball, Jr., MBA, MSIS
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the LICENSE file for full details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the LICENSE file for full details.
