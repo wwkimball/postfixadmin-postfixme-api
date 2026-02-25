@@ -45,7 +45,7 @@ services:
       - .env.pfme-api.development
     volumes:
       # Mount source code for development/testing
-      - ../pfme/api:/var/www/pfme-api
+      - ../:/var/www/pfme-api
     depends_on:
       database:
         condition: service_healthy

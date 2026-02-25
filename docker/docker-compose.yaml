@@ -8,8 +8,6 @@ services:
       - mysql_root_password
       - postfixadmin_db_user
       - postfixadmin_db_password
-      - postfixadmin_setup_password
-      - postfixadmin_admin_smtp_password
     env_file:
       - .env.postfixadmin
     environment:
@@ -28,7 +26,7 @@ services:
     networks:
       - postfixadmin-private
     healthcheck:
-      test: ["CMD", "cgi-fcgi", "-bind", "-connect", "localhost:9000", "&>/dev/null"]
+      test: ["CMD", "pgrep", "php-fpm"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,6 +44,7 @@ services:
         DEPLOYMENT_STAGE: ${DEPLOYMENT_STAGE:-production}
     restart: unless-stopped
     secrets:
+      - mysql_root_password
       - postfixadmin_db_user
       - postfixadmin_db_password
       - pfme_jwt_private_key
@@ -120,10 +119,6 @@ secrets:
     file: ./secrets/postfixadmin_db_user.txt
   postfixadmin_db_password:
     file: ./secrets/postfixadmin_db_password.txt
-  postfixadmin_setup_password:
-    file: ./secrets/postfixadmin_setup_password.txt
-  postfixadmin_admin_smtp_password:
-    file: ./secrets/postfixadmin_admin_smtp_password.txt
   pfme_jwt_private_key:
     file: ./secrets/pfme_jwt_private_key.txt
   pfme_jwt_public_key:
