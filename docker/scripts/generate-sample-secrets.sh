@@ -15,11 +15,14 @@ SECRETS_DIR="${BASE_DIR}/secrets"
 
 # Human-editable templates for generated .env files.  Keep these templates
 # short and clear so contributors can read and adjust them easily.
+#
+# docker/.env.development
 ENV_DEV_TEMPLATE=$(cat <<'EOF'
 # Development environment defaults
 APP_ENV=development
 PFME_REQUIRE_TLS=false
 TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
+POSTFIXADMIN_SOURCE_NETWORK=%
 POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_NAME=postfixadmin
 POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user.txt
@@ -29,11 +32,13 @@ PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
 EOF
 )
 
+# docker/.env.qa
 ENV_QA_TEMPLATE=$(cat <<'EOF'
 # QA environment defaults
 APP_ENV=testing
 PFME_REQUIRE_TLS=false
 TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
+POSTFIXADMIN_SOURCE_NETWORK=%
 POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_NAME=postfixadmin
 POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user.txt
@@ -43,6 +48,7 @@ PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
 EOF
 )
 
+# docker/.env.production
 ENV_PROD_TEMPLATE=$(cat <<'EOF'
 # Production example (replace values before deploying)
 APP_ENV=production
@@ -50,10 +56,12 @@ PFME_REQUIRE_TLS=true
 POSTFIXADMIN_DB_HOST=your-db-host
 POSTFIXADMIN_DB_NAME=postfixadmin
 POSTFIXADMIN_DB_USER=postfixadmin
+POSTFIXADMIN_SOURCE_NETWORK=%
 PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
 EOF
 )
 
+# docker/.env.postfixadmin
 ENV_POSTFIXADMIN_TEMPLATE=$(cat <<'EOF'
 # PostfixAdmin example env
 POSTFIXADMIN_DB_TYPE=mysql
@@ -64,6 +72,71 @@ MYSQL_PASSWORD_FILE=/run/secrets/postfixadmin_db_password.txt
 EOF
 )
 
+# docker/.env.postfixadmin.development
+ENV_POSTFIXADMIN_DEV_TEMPLATE=$(cat <<EOF
+# Database type: PostfixAdmin expects 'mysqli' for MySQL/MariaDB, 'pgsql' for PostgreSQL, 'sqlite' for SQLite
+POSTFIXADMIN_DB_TYPE=mysqli
+POSTFIXADMIN_DB_HOST=database
+POSTFIXADMIN_DB_PORT=3306
+POSTFIXADMIN_DB_NAME=email
+POSTFIXADMIN_SOURCE_NETWORK=%
+
+MYSQL_HOST=\$POSTFIXADMIN_DB_HOST
+MYSQL_PORT=\$POSTFIXADMIN_DB_PORT
+MYSQL_DATABASE=\$POSTFIXADMIN_DB_NAME
+MYSQL_USER=root
+MYSQL_DISABLE_TLS=true
+DBSCHEMA_SETTINGS_TABLE=dbschema_settings
+
+# Other PostfixAdmin configuration
+POSTFIXADMIN_ADMIN_EMAIL=postmaster@localhost.localdomain
+POSTFIXADMIN_SMTP_SERVER=mail.localhost.localdomain
+POSTFIXADMIN_ADMIN_SMTP_PASSWORD=$( _random_password )
+EOF
+)
+
+# docker/.env.pfme-api
+ENV_PFME_API_TEMPLATE=$(cat <<'EOF'
+# JWT and token settings for PostfixMe API
+PFME_ACCESS_TOKEN_TTL=900
+PFME_REFRESH_TOKEN_TTL=157680000
+PFME_JWT_ISSUER=pfme-api
+PFME_JWT_AUDIENCE=pfme-mobile
+
+# If behind a reverse proxy that terminates TLS, set this to the header that
+# indicates the original protocol (e.g. X-Forwarded-Proto) and ensure your
+# proxy is configured to set it.  This allows the API to correctly identify
+# secure requests and enforce TLS requirements.
+TRUSTED_TLS_HEADER_NAME=X-Forwarded-Proto
+EOF
+)
+
+# docker/.env.pfme-api.development
+ENV_PFME_API_DEV_TEMPLATE=$(cat <<'EOF'
+# Enable extended logging for development
+APP_ENV=development
+
+# TLS is not possible in development (self-signed certs cause errors)
+PFME_REQUIRE_TLS="false"
+
+# Trusted proxies for development environment (Docker internal networks)
+TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
+
+# Database Configuration
+# Database type for PostfixMe API
+POSTFIXADMIN_DB_TYPE=mysqli
+
+# For testing different database platforms in development, uncomment desired config:
+# To test with PostgreSQL:
+#   POSTFIXADMIN_DB_TYPE=pgsql
+#   POSTFIXADMIN_DB_PORT=5432
+# To test with SQLite:
+#   POSTFIXADMIN_DB_TYPE=sqlite
+#   POSTFIXADMIN_DB_PATH=/var/lib/postfixadmin/postfixadmin.db
+EOF
+)
+
+# docker/.env (base template for all environments)
 BASE_ENV_TEMPLATE=$(cat <<EOF
 # Settings for Docker Compose itself (not any of the service containers).
 # These are independent of the build target (development, qa, production) and
@@ -127,10 +200,13 @@ function _write_env_files_if_missing {
 
     # Use human-editable template variables to populate sample files.
     _write_if_missing "$BASE_DIR/.env" "$BASE_ENV_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.dev" "$ENV_DEV_TEMPLATE"
+    _write_if_missing "$BASE_DIR/.env.development" "$ENV_DEV_TEMPLATE"
     _write_if_missing "$BASE_DIR/.env.qa" "$ENV_QA_TEMPLATE"
     _write_if_missing "$BASE_DIR/.env.production" "$ENV_PROD_TEMPLATE"
     _write_if_missing "$BASE_DIR/.env.postfixadmin" "$ENV_POSTFIXADMIN_TEMPLATE"
+    _write_if_missing "$BASE_DIR/.env.postfixadmin.development" "$ENV_POSTFIXADMIN_DEV_TEMPLATE"
+    _write_if_missing "$BASE_DIR/.env.pfme-api" "$ENV_PFME_API_TEMPLATE"
+    _write_if_missing "$BASE_DIR/.env.pfme-api.development" "$ENV_PFME_API_DEV_TEMPLATE"
 
     echo "Wrote missing example .env.* file(s)."
 }
