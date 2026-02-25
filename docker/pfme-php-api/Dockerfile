@@ -18,8 +18,7 @@ ENV DBSCHEMA_SETTINGS_TABLE=dbschema_settings
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     bash \
-	mysql-client \
-		mariadb-connector-c \
+	mariadb-client \
     dovecot-core \
     unzip \
     libzip-dev \
