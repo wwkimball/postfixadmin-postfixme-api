@@ -96,6 +96,7 @@ EOF
 # docker/.env.postfixadmin
 ENV_POSTFIXADMIN_TEMPLATE=$(cat <<'EOF'
 # PostfixAdmin example env
+POSTFIXADMIN_ENCRYPT=dovecot:SHA512
 POSTFIXADMIN_DB_TYPE=mysql
 MYSQL_HOST=database
 MYSQL_DATABASE=postfixadmin
