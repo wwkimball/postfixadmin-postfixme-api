@@ -13,7 +13,6 @@ services:
       - postfixadmin_db_password
     volumes:
       - postfixadmin-mysql-data:/var/lib/mysql
-      - ./scripts/init-database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - postfixadmin-private
       - development
