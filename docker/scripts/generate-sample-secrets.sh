@@ -13,6 +13,38 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="${SCRIPT_DIR}/.."
 SECRETS_DIR="${BASE_DIR}/secrets"
 
+function _write_if_missing {
+    local path="$1"; shift
+    local content="$1"; shift || true
+    if [ -f "$path" ]; then
+        echo "Exists: $path"
+        return 0
+    fi
+    echo "$content" > "$path"
+    chmod 600 "$path" || true
+    echo "Wrote: $path"
+}
+
+function _random_password {
+    # 24-char base64-ish password
+    openssl rand -base64 18 | tr -d '\n'
+}
+
+function _generate_rsa_keys_if_missing {
+    local priv="$SECRETS_DIR/pfme_jwt_private_key.txt"
+    local pub="$SECRETS_DIR/pfme_jwt_public_key.txt"
+    if [ -f "$priv" ] && [ -f "$pub" ]; then
+        echo "JWT keypair exists"
+        return 0
+    fi
+    echo "Generating RSA keypair (2048 bits)"
+    openssl genpkey -algorithm RSA -out "$priv" -pkeyopt rsa_keygen_bits:2048
+    openssl rsa -pubout -in "$priv" -out "$pub"
+    chmod 600 "$priv" || true
+    chmod 644 "$pub" || true
+    echo "Wrote: $priv and $pub"
+}
+
 # Human-editable templates for generated .env files.  Keep these templates
 # short and clear so contributors can read and adjust them easily.
 #
@@ -153,66 +185,11 @@ NAS_VOLUME=volume0
 EOF
 )
 
-function _ensure_dirs {
-    if [ ! -d "$SECRETS_DIR" ]; then
-        mkdir -p "$SECRETS_DIR"
-        echo "Created: $SECRETS_DIR"
-    fi
-}
-
-function _write_if_missing {
-    local path="$1"; shift
-    local content="$1"; shift || true
-    if [ -f "$path" ]; then
-        echo "Exists: $path"
-        return 0
-    fi
-    echo "$content" > "$path"
-    chmod 600 "$path" || true
-    echo "Wrote: $path"
-}
-
-function _random_password {
-    # 24-char base64-ish password
-    openssl rand -base64 18 | tr -d '\n'
-}
-
-function _generate_rsa_keys_if_missing {
-    local priv="$SECRETS_DIR/pfme_jwt_private_key.pem"
-    local pub="$SECRETS_DIR/pfme_jwt_public_key.pem"
-    if [ -f "$priv" ] && [ -f "$pub" ]; then
-        echo "JWT keypair exists"
-        return 0
-    fi
-    echo "Generating RSA keypair (2048 bits)"
-    openssl genpkey -algorithm RSA -out "$priv" -pkeyopt rsa_keygen_bits:2048
-    openssl rsa -pubout -in "$priv" -out "$pub"
-    chmod 600 "$priv" || true
-    chmod 644 "$pub" || true
-    echo "Wrote: $priv and $pub"
-}
-
-function _write_env_files_if_missing {
-    if [ ! -d "$SECRETS_DIR" ]; then
-        echo "Secrets directory missing; create secrets first" >&2
-        return 2
-    fi
-
-    # Use human-editable template variables to populate sample files.
-    _write_if_missing "$BASE_DIR/.env" "$BASE_ENV_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.development" "$ENV_DEV_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.qa" "$ENV_QA_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.production" "$ENV_PROD_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.postfixadmin" "$ENV_POSTFIXADMIN_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.postfixadmin.development" "$ENV_POSTFIXADMIN_DEV_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.pfme-api" "$ENV_PFME_API_TEMPLATE"
-    _write_if_missing "$BASE_DIR/.env.pfme-api.development" "$ENV_PFME_API_DEV_TEMPLATE"
-
-    echo "Wrote missing example .env.* file(s)."
-}
-
-# Main
-_ensure_dirs
+# Ensure presence of the secrets directory
+if [ ! -d "$SECRETS_DIR" ]; then
+    mkdir -p "$SECRETS_DIR"
+    echo "Created: $SECRETS_DIR"
+fi
 
 _write_if_missing "$SECRETS_DIR/postfixadmin_db_user.txt" "postfixadmin"
 _write_if_missing "$SECRETS_DIR/postfixadmin_db_password.txt" "$( _random_password )"
@@ -220,8 +197,14 @@ _write_if_missing "$SECRETS_DIR/mysql_root_password.txt" "$( _random_password )"
 
 _generate_rsa_keys_if_missing
 
-# Create example .env files that reference the generated secrets.  This is
-# intentionally non-destructive; existing files are preserved.
-_write_env_files_if_missing
+# Create example .env files that reference the generated secrets
+_write_if_missing "$BASE_DIR/.env" "$BASE_ENV_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.development" "$ENV_DEV_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.qa" "$ENV_QA_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.production" "$ENV_PROD_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.postfixadmin" "$ENV_POSTFIXADMIN_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.postfixadmin.development" "$ENV_POSTFIXADMIN_DEV_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.pfme-api" "$ENV_PFME_API_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.pfme-api.development" "$ENV_PFME_API_DEV_TEMPLATE"
 
 echo "Quick start secret and environment file generation is complete.  Adjust the new .env and secret files according to your needs."
