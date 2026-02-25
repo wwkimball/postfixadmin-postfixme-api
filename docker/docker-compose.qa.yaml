@@ -1,0 +1,91 @@
+services:
+  database:
+    image: mariadb:lts
+    container_name: pfme-api-database-qa
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: ${POSTFIXADMIN_DB_NAME:-postfixadmin}
+      MYSQL_USER: ${POSTFIXADMIN_DB_USER:-postfixadmin}
+      MYSQL_PASSWORD_FILE: /run/secrets/postfixadmin_db_password
+    secrets:
+      - mysql_root_password
+      - postfixadmin_db_password
+    volumes:
+      - pfme-api-mysql-qa:/var/lib/mysql
+      - ./scripts/init-database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - pfme-network
+    profiles:
+      - qa
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  pfme-api:
+    profiles:
+      - qa
+    environment:
+      DEPLOYMENT_STAGE: qa
+    env_file:
+      - .env.postfixadmin.qa
+      - .env.pfme-api.qa
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - pfme-network
+    secrets:
+      - pfme_jwt_private_key
+      - pfme_jwt_public_key
+      - postfixadmin_db_user
+
+  pfme-api-tests:
+    build:
+      context: ../../../
+      dockerfile: pfme/api/docker/pfme-php-api-tests/Dockerfile
+    image: pfme-api-tests:${VERSION:-latest}
+    profiles:
+      - qa
+    restart: "no"
+    env_file:
+      - .env.postfixadmin.qa
+      - .env.pfme-api.qa
+    environment:
+      POSTFIXADMIN_SOURCE_PATH: /usr/src/postfixadmin
+    networks:
+      - pfme-network
+    depends_on:
+      database:
+        condition: service_healthy
+      pfme-api:
+        condition: service_healthy
+    volumes:
+      - postfixadmin-src:/usr/src/postfixadmin:ro
+    secrets:
+      - pfme_jwt_private_key
+      - pfme_jwt_public_key
+      - postfixadmin_db_user
+      - postfixadmin_db_password
+
+volumes:
+  pfme-api-mysql-qa: {}
+  postfixadmin-src: {}
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  postfixadmin_db_password:
+    file: ./secrets/postfixadmin_db_password.txt
+  postfixadmin_db_user:
+    file: ./secrets/postfixadmin_db_user.txt
+  pfme_jwt_private_key:
+    file: ./secrets/pfme_jwt_private_key.pem
+  pfme_jwt_public_key:
+    file: ./secrets/pfme_jwt_public_key.pem
+
+networks:
+  pfme-network: {}

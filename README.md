@@ -3,8 +3,8 @@
 Mobile-friendly REST API for [PostfixAdmin](https://github.com/postfixadmin/postfixadmin) alias and mailbox password
 management.  This API was originally developed to support the PostfixMe mobile app but can be used by others.
 
-This is a container-based overlay for the [PostfixAdmin Docker image](https://hub.docker.com/_/postfixadmin), not an
-extension.
+This is a container-based overlay for the [PostfixAdmin Docker image](https://hub.docker.com/_/postfixadmin), not a
+plugin for PostfixAdmin.
 
 ## Overview
 

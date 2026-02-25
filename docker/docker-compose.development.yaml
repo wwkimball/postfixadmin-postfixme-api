@@ -1,0 +1,80 @@
+services:
+  database:
+    image: mariadb:lts
+    container_name: pfme-api-database-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: ${POSTFIXADMIN_DB_NAME:-postfixadmin}
+      MYSQL_USER: ${POSTFIXADMIN_DB_USER:-postfixadmin}
+      MYSQL_PASSWORD_FILE: /run/secrets/postfixadmin_db_password
+    secrets:
+      - mysql_root_password
+      - postfixadmin_db_password
+    volumes:
+      - postfixadmin-mysql-data:/var/lib/mysql
+      - ./scripts/init-database.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - postfixadmin-private
+      - development
+    healthcheck:
+      test: ["CMD-SHELL", 'mariadb --password=$$(head -1 /run/secrets/mysql_root_password) --execute="SELECT count(table_name) > 0 FROM information_schema.tables;" --skip-column-names -B']
+      interval: 30s
+      timeout: 10s
+      retries: 4
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+    profiles:
+      - development
+
+  postfixadmin:
+    env_file:
+      - .env.postfixadmin.development
+    depends_on:
+      database:
+        condition: service_healthy
+    profiles:
+      - development
+
+  pfme-api:
+    environment:
+      DEPLOYMENT_STAGE: development
+    env_file:
+      - .env.postfixadmin.development
+      - .env.pfme-api.development
+    volumes:
+      # Mount source code for development/testing
+      - ../pfme/api:/var/www/pfme-api
+    depends_on:
+      database:
+        condition: service_healthy
+    profiles:
+      - development
+
+  # pfme-api-tests intentionally omitted from the development profile.  For
+  # several important reasons, tests should be run separately using the 'qa'
+  # profile.
+
+  reverse_proxy:
+    ports: # outside:inside
+      - 8080:80
+    depends_on:
+      postfixadmin:
+        condition: service_healthy
+      pfme-api:
+        condition: service_healthy
+
+volumes:
+  postfixadmin-mysql-data: {}
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  postfixadmin_db_password:
+    file: ./secrets/postfixadmin_db_password.txt
+
+networks:
+  development:
+    driver: bridge
