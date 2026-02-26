@@ -29,7 +29,7 @@ return [
         'type' => getenv('POSTFIXADMIN_DB_TYPE') ?: 'mysqli',
 
         // MySQL/MariaDB/PostgreSQL connection settings
-        'host' => getenv('POSTFIXADMIN_DB_HOST') ?: 'db',
+        'host' => getenv('POSTFIXADMIN_DB_HOST') ?: 'database',
         'port' => getenv('POSTFIXADMIN_DB_PORT') ?: (
             (getenv('POSTFIXADMIN_DB_TYPE') === 'pgsql') ? '5432' : '3306'
         ),

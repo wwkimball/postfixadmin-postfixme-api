@@ -65,6 +65,9 @@ services:
       - 80
     networks:
       - postfixadmin-private
+    depends_on:
+      postfixadmin:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
       interval: 30s
@@ -101,6 +104,8 @@ services:
       - postfixadmin-private
     depends_on:
       postfixadmin:
+        condition: service_healthy
+      pfme-api:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://localhost/"]

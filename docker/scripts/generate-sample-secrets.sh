@@ -48,19 +48,67 @@ function _generate_rsa_keys_if_missing {
 # Human-editable templates for generated .env files.  Keep these templates
 # short and clear so contributors can read and adjust them easily.
 #
+# docker/.env (base template for all environments)
+BASE_ENV_TEMPLATE=$(cat <<EOF
+# Settings for Docker Compose itself (not any of the service containers).
+# These are independent of the build target (development, qa, production) and
+# are the same for all of them; these constitute your network-specific settings.
+#
+# When using William Kimball's general shell script library for Docker builds,
+# these environment variables must be set, though they don't have to be "real"
+# unless you want to use image publishing capabilities that require private
+# Docker registry access.
+DOMAIN_NAME=localdomain.local
+
+DOCKER_REGISTRY_SOCKET=docker-registry.\${DOMAIN_NAME}:443
+DOCKER_REGISTRY_USERNAME=$(whoami)
+DOCKER_REGISTRY_REPOSITORY=$(whoami)
+
+NAS_HOST=nas.\${DOMAIN_NAME}
+NAS_SHARE=my-docker-nfs-share
+NAS_VOLUME=volume0
+EOF
+)
+
 # docker/.env.development
 ENV_DEV_TEMPLATE=$(cat <<'EOF'
 # Development environment defaults
+#
+# Enable extended logging for development
 APP_ENV=development
+
 PFME_REQUIRE_TLS=false
+PFME_JWT_PRIVATE_KEY_FILE=/run/secrets/pfme_jwt_private_key
+PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key
+
 TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
-POSTFIXADMIN_SOURCE_NETWORK=%
+
+POSTFIXADMIN_ENCRYPT=dovecot:SHA512
+
 POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_NAME=postfixadmin
-POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user.txt
-POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password.txt
-PFME_JWT_PRIVATE_KEY_FILE=/run/secrets/pfme_jwt_private_key.pem
-PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
+POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user
+POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+POSTFIXADMIN_DB_HOST=database
+POSTFIXADMIN_DB_PORT=3306
+POSTFIXADMIN_SOURCE_NETWORK=%
+
+# For testing different database platforms in development, uncomment desired config:
+# To test with PostgreSQL:
+#   POSTFIXADMIN_DB_TYPE=pgsql
+#   POSTFIXADMIN_DB_PORT=5432
+# To test with SQLite:
+#   POSTFIXADMIN_DB_TYPE=sqlite
+#   POSTFIXADMIN_DB_PATH=/var/lib/postfixadmin/postfixadmin.db
+
+MYSQL_HOST=$POSTFIXADMIN_DB_HOST
+MYSQL_PORT=$POSTFIXADMIN_DB_PORT
+MYSQL_DATABASE=$POSTFIXADMIN_DB_NAME
+MYSQL_USER=root
+MYSQL_DISABLE_TLS=true
+MYSQL_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+
+DBSCHEMA_SETTINGS_TABLE=dbschema_settings
 EOF
 )
 
@@ -68,15 +116,31 @@ EOF
 ENV_QA_TEMPLATE=$(cat <<'EOF'
 # QA environment defaults
 APP_ENV=testing
+
 PFME_REQUIRE_TLS=false
+PFME_JWT_PRIVATE_KEY_FILE=/run/secrets/pfme_jwt_private_key
+PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key
+
 TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
-POSTFIXADMIN_SOURCE_NETWORK=%
+
+POSTFIXADMIN_ENCRYPT=dovecot:SHA512
+
 POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_NAME=postfixadmin
-POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user.txt
-POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password.txt
-PFME_JWT_PRIVATE_KEY_FILE=/run/secrets/pfme_jwt_private_key.pem
-PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
+POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user
+POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+POSTFIXADMIN_DB_HOST=database
+POSTFIXADMIN_DB_PORT=3306
+POSTFIXADMIN_SOURCE_NETWORK=%
+
+MYSQL_HOST=$POSTFIXADMIN_DB_HOST
+MYSQL_PORT=$POSTFIXADMIN_DB_PORT
+MYSQL_DATABASE=$POSTFIXADMIN_DB_NAME
+MYSQL_USER=root
+MYSQL_DISABLE_TLS=true
+MYSQL_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+
+DBSCHEMA_SETTINGS_TABLE=dbschema_settings
 EOF
 )
 
@@ -84,47 +148,53 @@ EOF
 ENV_PROD_TEMPLATE=$(cat <<'EOF'
 # Production example (replace values before deploying)
 APP_ENV=production
+
 PFME_REQUIRE_TLS=true
-POSTFIXADMIN_DB_HOST=your-db-host
+PFME_JWT_PRIVATE_KEY_FILE=/run/secrets/pfme_jwt_private_key
+PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key
+
+TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
+
+POSTFIXADMIN_ENCRYPT=dovecot:SHA512
+
+POSTFIXADMIN_DB_TYPE=mysqli
 POSTFIXADMIN_DB_NAME=postfixadmin
-POSTFIXADMIN_DB_USER=postfixadmin
+POSTFIXADMIN_DB_USER_FILE=/run/secrets/postfixadmin_db_user
+POSTFIXADMIN_DB_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+POSTFIXADMIN_DB_HOST=your-db-host
+POSTFIXADMIN_DB_PORT=3306
 POSTFIXADMIN_SOURCE_NETWORK=%
-PFME_JWT_PUBLIC_KEY_FILE=/run/secrets/pfme_jwt_public_key.pem
+
+MYSQL_HOST=$POSTFIXADMIN_DB_HOST
+MYSQL_PORT=$POSTFIXADMIN_DB_PORT
+MYSQL_DATABASE=$POSTFIXADMIN_DB_NAME
+MYSQL_USER=root
+MYSQL_DISABLE_TLS=true
+MYSQL_PASSWORD_FILE=/run/secrets/postfixadmin_db_password
+
+DBSCHEMA_SETTINGS_TABLE=dbschema_settings
 EOF
 )
 
 # docker/.env.postfixadmin
-ENV_POSTFIXADMIN_TEMPLATE=$(cat <<'EOF'
-# PostfixAdmin example env
-POSTFIXADMIN_ENCRYPT=dovecot:SHA512
-POSTFIXADMIN_DB_TYPE=mysql
-MYSQL_HOST=database
-MYSQL_DATABASE=postfixadmin
-MYSQL_USER=postfixadmin
-MYSQL_PASSWORD_FILE=/run/secrets/postfixadmin_db_password.txt
+ENV_POSTFIXADMIN_TEMPLATE=$(cat <<EOF
+POSTFIXADMIN_ADMIN_SMTP_PASSWORD=$( _random_password )
 EOF
 )
 
 # docker/.env.postfixadmin.development
-ENV_POSTFIXADMIN_DEV_TEMPLATE=$(cat <<EOF
-# Database type: PostfixAdmin expects 'mysqli' for MySQL/MariaDB, 'pgsql' for PostgreSQL, 'sqlite' for SQLite
-POSTFIXADMIN_DB_TYPE=mysqli
-POSTFIXADMIN_DB_HOST=database
-POSTFIXADMIN_DB_PORT=3306
-POSTFIXADMIN_DB_NAME=email
-POSTFIXADMIN_SOURCE_NETWORK=%
-
-MYSQL_HOST=\$POSTFIXADMIN_DB_HOST
-MYSQL_PORT=\$POSTFIXADMIN_DB_PORT
-MYSQL_DATABASE=\$POSTFIXADMIN_DB_NAME
-MYSQL_USER=root
-MYSQL_DISABLE_TLS=true
-DBSCHEMA_SETTINGS_TABLE=dbschema_settings
-
+ENV_POSTFIXADMIN_DEV_TEMPLATE=$(cat <<'EOF'
 # Other PostfixAdmin configuration
-POSTFIXADMIN_ADMIN_EMAIL=postmaster@localhost.localdomain
-POSTFIXADMIN_SMTP_SERVER=mail.localhost.localdomain
-POSTFIXADMIN_ADMIN_SMTP_PASSWORD=$( _random_password )
+POSTFIXADMIN_ADMIN_EMAIL=postmaster@development.localhost.localdomain
+POSTFIXADMIN_SMTP_SERVER=mail.development.localhost.localdomain
+EOF
+)
+
+# docker/.env.postfixadmin.qa
+ENV_POSTFIXADMIN_QA_TEMPLATE=$(cat <<'EOF'
+# Other PostfixAdmin configuration
+POSTFIXADMIN_ADMIN_EMAIL=postmaster@qa.localhost.localdomain
+POSTFIXADMIN_SMTP_SERVER=mail.qa.localhost.localdomain
 EOF
 )
 
@@ -146,43 +216,33 @@ EOF
 
 # docker/.env.pfme-api.development
 ENV_PFME_API_DEV_TEMPLATE=$(cat <<'EOF'
-# Enable extended logging for development
-APP_ENV=development
-
 # TLS is not possible in development (self-signed certs cause errors)
 PFME_REQUIRE_TLS="false"
 
 # Trusted proxies for development environment (Docker internal networks)
 TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
-
-# Database Configuration
-# Database type for PostfixMe API
-POSTFIXADMIN_DB_TYPE=mysqli
-
-# For testing different database platforms in development, uncomment desired config:
-# To test with PostgreSQL:
-#   POSTFIXADMIN_DB_TYPE=pgsql
-#   POSTFIXADMIN_DB_PORT=5432
-# To test with SQLite:
-#   POSTFIXADMIN_DB_TYPE=sqlite
-#   POSTFIXADMIN_DB_PATH=/var/lib/postfixadmin/postfixadmin.db
 EOF
 )
 
-# docker/.env (base template for all environments)
-BASE_ENV_TEMPLATE=$(cat <<EOF
-# Settings for Docker Compose itself (not any of the service containers).
-# These are independent of the build target (development, qa, production) and
-# are the same for all of them; these constitute your network-specific settings.
-DOMAIN_NAME=localdomain.local
+# docker/.env.pfme-api.qa
+ENV_PFME_API_QA_TEMPLATE=$(cat <<'EOF'
+# TLS is not possible in QA (self-signed certs cause errors)
+PFME_REQUIRE_TLS="false"
 
-DOCKER_REGISTRY_SOCKET=docker-registry.\${DOMAIN_NAME}:443
-DOCKER_REGISTRY_USERNAME=$(whoami)
-DOCKER_REGISTRY_REPOSITORY=$(whoami)
+# Trusted proxies for QA environment (Docker internal networks)
+TRUSTED_PROXY_CIDR=172.16.0.0/12,192.168.0.0/24,10.0.0.0/8
 
-NAS_HOST=nas.\${DOMAIN_NAME}
-NAS_SHARE=my-docker-nfs-share
-NAS_VOLUME=volume0
+# Shorter for testing
+PFME_ACCESS_TOKEN_TTL=300
+PFME_REFRESH_TOKEN_TTL=3600
+
+# Custom for testing
+PFME_JWT_ISSUER=pfme-api-qa
+PFME_JWT_AUDIENCE=pfme-mobile-qa
+
+# Database Configuration
+# Database type for PostfixMe API (values must match PostfixAdmin format)
+POSTFIXADMIN_DB_TYPE=mysqli
 EOF
 )
 
@@ -205,7 +265,9 @@ _write_if_missing "$BASE_DIR/.env.qa" "$ENV_QA_TEMPLATE"
 _write_if_missing "$BASE_DIR/.env.production" "$ENV_PROD_TEMPLATE"
 _write_if_missing "$BASE_DIR/.env.postfixadmin" "$ENV_POSTFIXADMIN_TEMPLATE"
 _write_if_missing "$BASE_DIR/.env.postfixadmin.development" "$ENV_POSTFIXADMIN_DEV_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.postfixadmin.qa" "$ENV_POSTFIXADMIN_QA_TEMPLATE"
 _write_if_missing "$BASE_DIR/.env.pfme-api" "$ENV_PFME_API_TEMPLATE"
 _write_if_missing "$BASE_DIR/.env.pfme-api.development" "$ENV_PFME_API_DEV_TEMPLATE"
+_write_if_missing "$BASE_DIR/.env.pfme-api.qa" "$ENV_PFME_API_QA_TEMPLATE"
 
 echo "Quick start secret and environment file generation is complete.  Adjust the new .env and secret files according to your needs."

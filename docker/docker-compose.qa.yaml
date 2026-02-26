@@ -14,61 +14,77 @@ services:
     volumes:
       - pfme-api-mysql-qa:/var/lib/mysql
     networks:
-      - pfme-network
-    profiles:
+      - postfixadmin-private
       - qa
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-
-  pfme-api:
+      test: ["CMD-SHELL", 'mariadb --password=$$(head -1 /run/secrets/mysql_root_password) --execute="SELECT count(table_name) > 0 FROM information_schema.tables;" --skip-column-names -B']
+      interval: 30s
+      timeout: 10s
+      retries: 4
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
     profiles:
       - qa
+
+  postfixadmin:
+    env_file:
+      - .env.qa
+      - .env.postfixadmin.qa
+    depends_on:
+      database:
+        condition: service_healthy
+    profiles:
+      - qa
+
+  pfme-api:
     environment:
       DEPLOYMENT_STAGE: qa
     env_file:
+      - .env.qa
       - .env.postfixadmin.qa
       - .env.pfme-api.qa
     depends_on:
       database:
         condition: service_healthy
     networks:
-      - pfme-network
+      - postfixadmin-private
     secrets:
       - pfme_jwt_private_key
       - pfme_jwt_public_key
       - postfixadmin_db_user
-
-  pfme-api-tests:
-    build:
-      context: ../../../
-      dockerfile: pfme/api/docker/pfme-php-api-tests/Dockerfile
-    image: pfme-api-tests:${VERSION:-latest}
     profiles:
       - qa
+
+  pfme-api-tests:
+    image: pfme-api-tests:${VERSION:-latest}
+    build:
+      context: ../
+      dockerfile: ./docker/pfme-php-api-tests/Dockerfile
     restart: "no"
     env_file:
+      - .env.qa
       - .env.postfixadmin.qa
       - .env.pfme-api.qa
     environment:
       POSTFIXADMIN_SOURCE_PATH: /usr/src/postfixadmin
     networks:
-      - pfme-network
+      - postfixadmin-private
+    volumes:
+      - postfixadmin-src:/usr/src/postfixadmin:ro
+    secrets:
+      - postfixadmin_db_user
+      - postfixadmin_db_password
+      - pfme_jwt_private_key
+      - pfme_jwt_public_key
     depends_on:
       database:
         condition: service_healthy
       pfme-api:
         condition: service_healthy
-    volumes:
-      - postfixadmin-src:/usr/src/postfixadmin:ro
-    secrets:
-      - pfme_jwt_private_key
-      - pfme_jwt_public_key
-      - postfixadmin_db_user
-      - postfixadmin_db_password
+    profiles:
+      - qa
 
 volumes:
   pfme-api-mysql-qa: {}
@@ -82,9 +98,11 @@ secrets:
   postfixadmin_db_user:
     file: ./secrets/postfixadmin_db_user.txt
   pfme_jwt_private_key:
-    file: ./secrets/pfme_jwt_private_key.pem
+    file: ./secrets/pfme_jwt_private_key.txt
   pfme_jwt_public_key:
-    file: ./secrets/pfme_jwt_public_key.pem
+    file: ./secrets/pfme_jwt_public_key.txt
 
 networks:
-  pfme-network: {}
+  # Grant QA external access to the database service
+  qa:
+    driver: bridge

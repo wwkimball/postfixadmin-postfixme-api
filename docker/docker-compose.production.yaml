@@ -7,6 +7,7 @@ services:
   postfixadmin:
     restart: always
     env_file:
+      - .env.production
       - .env.postfixadmin.production
     volumes:
       - postfixadmin-src:/var/www/html:ro
@@ -15,6 +16,7 @@ services:
 
   pfme-api:
     env_file:
+      - .env.production
       - .env.postfixadmin.production
       - .env.pfme-api.production
     healthcheck:
@@ -42,5 +44,5 @@ services:
 networks:
   database-link:
     driver: bridge
-    external: true  # This should be managed by an outside process
+    external: true  # This should be managed by an external process
     name: ${DATABASE_NETWORK_NAME:-production-database-link}

@@ -30,6 +30,7 @@ services:
 
   postfixadmin:
     env_file:
+      - .env.development
       - .env.postfixadmin.development
     depends_on:
       database:
@@ -41,6 +42,7 @@ services:
     environment:
       DEPLOYMENT_STAGE: development
     env_file:
+      - .env.development
       - .env.postfixadmin.development
       - .env.pfme-api.development
     volumes:
@@ -75,5 +77,6 @@ secrets:
     file: ./secrets/postfixadmin_db_password.txt
 
 networks:
+  # Grant Developers external access to the database service
   development:
     driver: bridge
