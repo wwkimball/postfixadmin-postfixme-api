@@ -20,7 +20,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/pfme-api
 
 # Copy application files
-COPY --parents composer.json config public src tests /var/www/pfme-api/
+COPY --parents composer.json phpunit.xml config public src tests /var/www/pfme-api/
 COPY docker/pfme-php-api-tests/scripts/run-phpunit-tests.sh /usr/local/bin/
 
 # Install PHP dependencies including dev

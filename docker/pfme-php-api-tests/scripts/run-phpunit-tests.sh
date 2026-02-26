@@ -14,4 +14,8 @@ if ! cd /var/www/pfme-api; then
 	exit 2
 fi
 
-exec ./vendor/bin/phpunit tests
+./vendor/bin/phpunit --display-all-issues tests
+exitState=$?
+
+echo -e "\nPHPUnit exited with status $exitState"
+exit $exitState

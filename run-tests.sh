@@ -11,17 +11,23 @@
 # Copyright 2026 William W. Kimball, Jr. MBA MSIS
 # All rights reserved.
 ################################################################################
-./stop.sh --clean ||:
+# Ensure no services are running (don't destroy dev volumes!)
+./stop.sh --clean --stage development ||:
+./stop.sh --clean --destroy-volumes --stage qa ||:
 
-if ! ./build.sh --clean --no-push --no-portable --stage qa
+# Build -- but do not start -- the full QA stack.  If you try to start the stack
+# Docker Compose will attempt to start pfme-api-tests, which will appear to fail
+# because it is a one-off test container.  Use --transient-build so that all
+# template processing can be reverted upon completion.
+if ! ./build.sh --transient-build --clean --no-push --no-portable --stage qa
 then
 	echo "ERROR:  Build failed, cannot run tests!" >&2
 	exit 1
 fi
 
-# Note that the whole stack will be started to support the tests, but the test
-# container will run the test script and then exit, leaving the rest of the
-# stack running for inspection if needed.
+# Note that the whole stack will be automatically started on-demand to support
+# the tests, but the test container will run the test script and then exit,
+# leaving the rest of the stack running.
 ./compose.sh --stage qa run --rm pfme-api-tests run-phpunit-tests.sh
 
 # Stop the stack, cleaning up all related Docker artifacts.
