@@ -51,6 +51,20 @@ while IFS= read -r -d '' templateFile; do
 	schemaTemplateDirectories["$templateDirectory"]=1
 done < <(find "$SCHEMA_DIR" "$TEST_DATA_DIR" -type f -iname '*template*' -print0)
 
+# This step intermittently fails on MacOS with the multi-directory `find`
+# command sometimes returning an empty result, which causes the templates to be
+# copied verbatim rather than being processed.  To mitigate the resulting
+# inevitable bad build, we abort here whenever there are no discovered schema
+# template directories.
+if [ ${#schemaTemplateDirectories[@]} -eq 0 ]; then
+	errorOut 2 "No schema template files found, cannot proceed with build!  This
+		may have been an ephemeral issue with the find command, so try running
+		the build again.  If the issue persists, investigate potential problems
+		with the find command on your system."
+else
+	logInfo "Discovered schema template directories:  ${!schemaTemplateDirectories[@]}"
+fi
+
 if $_isDevelopment; then
 	# Rotate the schema files between the schema and shelved-schema directories;
 	# but if the shelved-schema directory exists, then a previous build failed.
@@ -84,19 +98,9 @@ if $_isDevelopment; then
 	fi
 fi
 
-# # Process templates
-# if ! "${MY_DIRECTORY}/process-templates.sh" \
-# 	"$_deploymentStage" \
-# 	"$_bakedComposeFile" \
-# 	--preserve \
-# 	--directory "${DOCKER_DIR}/postfixadmin/config"
-# then
-# 	errorOut 4 "Failed to process templates."
-# fi
-
 # Only process template directories if template files were actually found
 if [ ${#schemaTemplateDirectories[@]} -eq 0 ]; then
-	logInfo "No schema template files found - skipping schema template processing."
+	errorOut 4 "No mandatory schema template files found."
 else
 	for templateDirectory in "${!schemaTemplateDirectories[@]}"; do
 		logInfo "Processing schema templates in:  ${templateDirectory}."
@@ -106,7 +110,7 @@ else
 			--directory "$templateDirectory" \
 			--force
 		then
-			errorOut 4 "Failed to process schema template(s) in:  ${templateDirectory}."
+			errorOut 5 "Failed to process schema template(s) in:  ${templateDirectory}."
 		fi
 	done
 fi
