@@ -6,7 +6,10 @@ FROM php:8.2-apache AS base
 LABEL description="Example PostfixMe PHP API"
 LABEL version="0.1.0"
 
+# Build arguments
 ARG DEPLOYMENT_STAGE=production
+
+# Environment variables
 ENV DEPLOYMENT_STAGE=${DEPLOYMENT_STAGE}
 ENV MYSQL_HOST=database
 ENV MYSQL_PORT=3306
@@ -17,12 +20,11 @@ ENV DBSCHEMA_SETTINGS_TABLE=dbschema_settings
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
-    bash \
-	mariadb-client \
-    dovecot-core \
-    unzip \
-    libzip-dev \
-    dovecot-core \
+        bash \
+        mariadb-client \
+        dovecot-core \
+        unzip \
+        libzip-dev \
     && docker-php-ext-install pdo pdo_mysql zip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,17 +33,22 @@ WORKDIR /opt/dbutils
 COPY ./schema schema
 COPY ./lib lib
 
+# Enable Apache modules
 RUN a2enmod rewrite headers env
 
-# Configure Apache headers
+# Configure Apache to pass headers to PHP (Authorization, X-Forwarded-Proto, etc.)
+# This is critical for TLS middleware and proxy headers to work correctly
 COPY ./docker/pfme-php-api/config/php-headers.conf /etc/apache2/conf-available/php-headers.conf
 RUN a2enconf php-headers
 
-# Composer from official image
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Set working directory
+WORKDIR /var/www/html
+
 # Copy application files from repository context
-COPY ./config ./public ./src /var/www/pfme-api/
+COPY ./config ./src /var/www/pfme-api/
 
 # Copy composer manifest so `composer install` can run
 COPY ./composer.json /var/www/pfme-api/
@@ -50,6 +57,7 @@ COPY ./composer.json /var/www/pfme-api/
 WORKDIR /var/www/pfme-api
 RUN composer install --no-dev --optimize-autoloader --no-interaction 2>&1
 
+# Configure Apache DocumentRoot to public/
 ENV APACHE_DOCUMENT_ROOT=/var/www/pfme-api/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
