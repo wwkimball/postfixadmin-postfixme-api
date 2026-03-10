@@ -106,11 +106,11 @@ class Router
         $pattern = '#^' . $pattern . '$#';
 
         if (preg_match($pattern, $uri, $matches)) {
-            // Extract named parameters
+            // Extract named parameters (URL-decoded)
             $params = [];
             foreach ($matches as $key => $value) {
                 if (is_string($key)) {
-                    $params[$key] = $value;
+                    $params[$key] = urldecode($value);
                 }
             }
             return $params;
