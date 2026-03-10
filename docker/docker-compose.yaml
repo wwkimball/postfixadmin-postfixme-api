@@ -101,6 +101,7 @@ services:
       # -- and is thus reverse proxied directly (not using PHP-FPM at this
       # time).
     networks:
+      - intranet
       - postfixadmin-private
     depends_on:
       postfixadmin:
