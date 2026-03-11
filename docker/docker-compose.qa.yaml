@@ -39,6 +39,9 @@ services:
       - qa
 
   pfme-api:
+    build:
+      args:
+        DEPLOYMENT_STAGE: qa
     environment:
       DEPLOYMENT_STAGE: qa
     env_file:
