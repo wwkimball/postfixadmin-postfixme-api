@@ -65,6 +65,10 @@ class AuthenticationFlowTest extends TestCase
         $stmt = $this->db->prepare('DELETE FROM pfme_auth_log WHERE mailbox = ?');
         $stmt->execute([$this->testMailbox]);
 
+        // Reset auth attempts for non-existent mailbox used in failure tests
+        $stmt = $this->db->prepare('DELETE FROM pfme_auth_log WHERE mailbox = ?');
+        $stmt->execute(['nonexistent@acme.local']);
+
         // Reset mailbox security metadata to avoid unintended token invalidation across tests
         $stmt = $this->db->prepare('DELETE FROM pfme_mailbox_security WHERE mailbox = ?');
         $stmt->execute([$this->testMailbox]);
