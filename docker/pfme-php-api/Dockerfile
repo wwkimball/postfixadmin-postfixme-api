@@ -47,11 +47,14 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files from repository context
-COPY ./config ./src /var/www/pfme-api/
-
-# Copy composer manifest so `composer install` can run
-COPY ./composer.json /var/www/pfme-api/
+# Copy only the runtime-needed application files (excludes tests, test-data,
+# docker config, build scripts, docs, vendor, and other non-runtime content).
+# Each directory is copied individually to preserve the required subdirectory
+# structure under /var/www/pfme-api/ (multi-source COPY merges contents flat).
+COPY ./config /var/www/pfme-api/config
+COPY ./src /var/www/pfme-api/src
+COPY ./public /var/www/pfme-api/public
+COPY ./composer.json ./composer.lock /var/www/pfme-api/
 
 # Install PHP dependencies with Composer
 WORKDIR /var/www/pfme-api
@@ -61,10 +64,6 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction 2>&1
 ENV APACHE_DOCUMENT_ROOT=/var/www/pfme-api/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
-
-# Ensure public/ exists and has the routing files
-RUN mkdir -p /var/www/pfme-api/public
-COPY ./public /var/www/pfme-api/public
 
 # Set ownership so Apache can serve files
 RUN chown -R www-data:www-data /var/www/pfme-api
