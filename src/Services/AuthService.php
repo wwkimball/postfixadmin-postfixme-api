@@ -84,8 +84,15 @@ class AuthService
         }
 
         if (function_exists('pacrypt')) {
-            $computed = pacrypt($plainPassword, $hashedPassword);
-            return hash_equals($hashedPassword, $computed);
+            try {
+                $computed = pacrypt($plainPassword, $hashedPassword);
+                return hash_equals($hashedPassword, $computed);
+            } catch (\Exception $e) {
+                // pacrypt throws when the password does not match (e.g. doveadm
+                // reports a mismatch via stderr). Treat this as a failed
+                // verification rather than a hard error.
+                return false;
+            }
         }
 
         throw new \RuntimeException('PostfixAdmin authentication functions not available.');
