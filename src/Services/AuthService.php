@@ -84,14 +84,20 @@ class AuthService
         }
 
         if (function_exists('pacrypt')) {
+            // PostfixAdmin's _pacrypt_dovecot() calls error_log() before throwing
+            // when doveadm reports a mismatch via stderr.  Redirect error_log to
+            // /dev/null for the duration of this call so that expected wrong-password
+            // noise does not pollute test and application logs.
+            $savedErrorLog = ini_get('error_log');
+            ini_set('error_log', '/dev/null');
             try {
                 $computed = pacrypt($plainPassword, $hashedPassword);
                 return hash_equals($hashedPassword, $computed);
             } catch (\Exception $e) {
-                // pacrypt throws when the password does not match (e.g. doveadm
-                // reports a mismatch via stderr). Treat this as a failed
-                // verification rather than a hard error.
+                // pacrypt throws when the password does not match.
                 return false;
+            } finally {
+                ini_set('error_log', $savedErrorLog);
             }
         }
 
