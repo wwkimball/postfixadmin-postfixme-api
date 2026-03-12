@@ -4,7 +4,26 @@ Mobile-friendly REST API for [PostfixAdmin](https://github.com/postfixadmin/post
 management.  This API was originally developed to support the PostfixMe mobile app but can be used by others.
 
 This is a container-based overlay for the [PostfixAdmin Docker image](https://hub.docker.com/_/postfixadmin), not a
-plugin for PostfixAdmin.
+plugin for PostfixAdmin.  You cannot use PostfixMe without PostfixAdmin.
+
+## Why Use the PostfixMe API
+
+You may enjoy using the PostfixMe API when any of the following are true:
+
+1. **Your mail server runs postfix.**  This isn't just for DIY (Do It Yourself) mail server administrators.  If you're
+   running postfix, you should also be running PostfixAdmin, especially if you have more than one mailbox and/or domain.
+   Adding the PostfixMe API adds additional capabilities to PostfixAdmin that are valuable for the other reasons, here.
+2. **You have users.**  Users today are less inclined to sit at a PC to manage their own mailbox passwords and mailbox
+   aliases.  Out of the box, PostfixAdmin requires users to log into its web-based interface, which performs poorly on
+   small mobile devices.  At the time of this writing, that interface is rudimentary and incomplete for
+   non-administrators, further driving non-administrators away from using it.  How much time can you take back if you
+   aren't forced to log into the PostfixAdmin interface as an administrator to handle your user requests?  Paired with a
+   mobile app that employs the PostfixMe API, this offloads that demand, enabling your users to self-manage their own
+   mailbox passwords and aliases, freeing your mail server administrator(s) of that burden.
+3. **You hate spam.**  Mailbox aliases are an anti-spam tool.  When you create and use a unique email alias for every
+   point of contact, you take immediate and direct control over who can send you email and when.  The moment you see
+   spam to any of your aliases, you can disable/delete the compromosed alias and know with irrefutible certainty who
+   sold you out.  This is "throwaway email addresses" at scale, trivial to create, trivial to disable/destroy.
 
 ## Overview
 
@@ -39,6 +58,110 @@ secret setup must be completed before deployment.
 
 Manual installation outside of containers is not supported, though it should be reasonably simple to accomplish with
 sufficient investment in automation scripts.
+
+## Docker Build
+
+This project provides an example Docker implementation, illustrating one possible way to deploy it along with
+PostfixAdmin.  You can try out this sample Docker Compose stack very quickly by performing the following quickstart
+steps:
+
+1. Clone this project with Git submodule support (use the `--recursive` flag with your `clone` operation).  This project
+   employs [a library of generally useful Bash shell scripts](https://github.com/wwkimball/shell-script-lib) which --
+   among other things -- simplifies otherwise very complex Docker build and deployment tasks.
+2. Run the [generate-sample-secrets.sh](docker/scripts/generate-sample-secrets.sh) shell script to automatically
+   generate a set of environment variable (`.env`) files with minimum viable configuration including randomized secrets.
+   Review the output files (`docker/*.env*`) to learn what values were generated for you.  These files are named for the
+   service and deployment stage their values apply to.
+3. Build and start the Docker Compose stack:  `./build.sh --start`.
+4. Experiment with the RESTful API per the documentation below.  Test data will have been loaded already, which you can
+   use to authenticate and otherwise explore any of several test user accounts.  The test data accounts [are documented
+   with the seed data](test-data/seeds/README.md).
+
+Do not publish these example Docker containers.  These are provided only for you to learn from in order to design and
+deploy your own private implementation of this PostfixMe API.
+
+The resuling example Docker Compose stack features:
+
+1. PostfixAdmin (configured for use with a MariaDB database)
+2. PostfixMe RESTful API server (shares code with the PostfixAdmin service)
+3. MariaDB database server
+4. NGINX reverse proxy (single entry point for both PostfixAdmin and PostfixMe)
+
+You are free to use the example to learn how to configure PostfixMe API for use with your existing PostfixAdmin
+installation, or for how to create your own Docker Compose stack which integrates them together.  The example provided
+here is *not* a production-ready configuration!  Rather, it is merely a minimally-viable example for a development
+environment.
+
+## Development
+
+### Testing
+
+Unit tests are located in `tests/Unit/` and use PHPUnit.  The test suite validates API endpoints, authentication logic,
+database operations, and security controls.
+
+Unit and integration testing is available via a single command.  After you've run the initial setup above (at least
+steps 1 and 2), you can run the full gammut of tests via the `run-tests.sh` shell script.
+
+### Code Quality
+
+The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to maintain quality standards.  Configure
+these tools in your development environment as needed.
+
+### Development Notes
+
+- JWT keys must be configured before running the API
+- Database connection requires access to PostfixAdmin's database
+- All endpoints expect and return JSON
+- Rate limiting and account lockout features require persistent storage
+
+## Database Schema
+
+The API requires additional tables in the PostfixAdmin database:
+
+- `pfme_refresh_tokens` - Stores refresh tokens with revocation support
+- `pfme_revoked_tokens` - Tracks revoked access tokens (JTI)
+- `pfme_auth_log` - Audit log for authentication attempts
+- `pfme_auth_log_summary` - Daily auth summary (mailbox + counts)
+- `pfme_auth_log_archive` - Archived auth log records (optional)
+
+For complete schema documentation including table structures, indexes, and migration procedures, see:
+
+- [Database Platform Support](docs/README-Supported_Database_Platforms.md)
+- [MySQL/MariaDB Schema](docs/README-MySQL.md)
+- [PostgreSQL Schema](docs/README-PostgreSQL.md)
+- [SQLite Schema](docs/README-SQLite.md)
+
+## Security Considerations
+
+1. **TLS Only**:  The API enforces TLS by default.  Only disable for local development.
+2. **Trusted Proxies**:  Configure `TRUSTED_PROXY_CIDR` to validate TLS headers from reverse proxies.
+3. **Rate Limiting**:  Failed authentication attempts are rate-limited per mailbox.
+4. **Account Lockout**:  Accounts are temporarily locked after excessive failures.
+5. **Token Revocation**:  Both access and refresh tokens support server-side revocation.
+6. **Audit Logging**:  All authentication attempts are logged with IP and user agent.
+
+## Auth Log Retention & Privacy
+
+PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation).
+Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.  To balance the need for a
+high degree of specificity during security incident response with user privacy concerns, these logs are anonymized after
+a configurable timespan and fully deleted after another timespan provided you implement the necessary scheduler and
+cleansing script, which is documented in detail in the `docs/` directory.
+
+**Behavior**:
+
+- **Summary**:  Stores only mailbox + daily counts (no IP or user agent).
+- **Retention**:  Deletes detailed logs older than the retention window.
+- **Archive (optional)**:  Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by
+  its own retention window.
+
+**Compliance Notes** (confirm with your compliance team):
+
+- **GDPR**:  No fixed retention; use data minimization (typical 30–90 days detailed logs).
+- **PCI DSS**:  12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
+- **HIPAA**:  No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
+- **SOC 2 / ISO 27001**:  No prescriptive duration; adopt a documented policy (often 90–180 days detailed + summaries
+  long-term).
 
 ## Configuration
 
@@ -338,90 +461,11 @@ Common error codes:
 - `tls_required` - TLS connection required
 - `rate_limit_exceeded` - Too many requests
 
-## Development
-
-### Testing
-
-Unit tests are located in `tests/Unit/` and use PHPUnit.  The test suite validates API endpoints, authentication logic,
-database operations, and security controls.
-
-When integrating this API into a container-based environment, tests should be run in a dedicated test container with all
-development dependencies.
-
-### Code Quality
-
-The codebase uses PHPStan (static analysis) and PHPCS (code style checking) to maintain quality standards.  Configure
-these tools in your development environment as needed.
-
-### Development Notes
-
-- JWT keys must be configured before running the API
-- Database connection requires access to PostfixAdmin's database
-- All endpoints expect and return JSON
-- Rate limiting and account lockout features require persistent storage
-
-## Database Schema
-
-The API requires additional tables in the PostfixAdmin database:
-
-- `pfme_refresh_tokens` - Stores refresh tokens with revocation support
-- `pfme_revoked_tokens` - Tracks revoked access tokens (JTI)
-- `pfme_auth_log` - Audit log for authentication attempts
-- `pfme_auth_log_summary` - Daily auth summary (mailbox + counts)
-- `pfme_auth_log_archive` - Archived auth log records (optional)
-
-For complete schema documentation including table structures, indexes, and migration procedures, see:
-
-- [Database Platform Support](docs/README-Supported_Database_Platforms.md)
-- [MySQL/MariaDB Schema](docs/README-MySQL.md)
-- [PostgreSQL Schema](docs/README-PostgreSQL.md)
-- [SQLite Schema](docs/README-SQLite.md)
-
-## Security Considerations
-
-1. **TLS Only**:  The API enforces TLS by default.  Only disable for local development.
-2. **Trusted Proxies**:  Configure `TRUSTED_PROXY_CIDR` to validate TLS headers from reverse proxies.
-3. **Rate Limiting**:  Failed authentication attempts are rate-limited per mailbox.
-4. **Account Lockout**:  Accounts are temporarily locked after excessive failures.
-5. **Token Revocation**:  Both access and refresh tokens support server-side revocation.
-6. **Audit Logging**:  All authentication attempts are logged with IP and user agent.
-
-## Auth Log Retention & Privacy
-
-PostfixMe logs authentication attempts to protect accounts (rate limiting, lockout, and incident investigation).
-Detailed auth logs contain mailbox, timestamp, success/failure, IP address, and user agent.  To balance the need for a
-high degree of specificity during security incident response with user privacy concerns, these logs are anonymized after
-a configurable timespan and fully deleted after another timespan provided you implement the necessary scheduler and
-cleansing script, which is documented in detail in the `docs/` directory.
-
-**Defaults**:
-
-- `PFME_AUTH_LOG_RETENTION_DAYS=90`
-- `PFME_AUTH_LOG_SUMMARY_ENABLED=true`
-- `PFME_AUTH_LOG_SUMMARY_LAG_DAYS=1`
-- `PFME_AUTH_LOG_ARCHIVE_ENABLED=false`
-- `PFME_AUTH_LOG_ARCHIVE_RETENTION_DAYS=365`
-
-**Behavior**:
-
-- **Summary**:  Stores only mailbox + daily counts (no IP or user agent).
-- **Retention**:  Deletes detailed logs older than the retention window.
-- **Archive (optional)**:  Moves detailed logs into `pfme_auth_log_archive` before deletion and prunes the archive by
-  its own retention window.
-
-**Compliance guidance** (confirm with your compliance team):
-
-- **GDPR**:  No fixed retention; use data minimization (typical 30–90 days detailed logs).
-- **PCI DSS**:  12 months retention, 3 months immediately available (example: retention 90 days + archive 365 days).
-- **HIPAA**:  No specific auth-log duration; many organizations align to 6 years for policy retention (archive 2190 days).
-- **SOC 2 / ISO 27001**:  No prescriptive duration; adopt a documented policy (often 90–180 days detailed + summaries
-  long-term).
-
 ## License
 
 PostfixMe API is free software licensed under the GNU General Public License v2 or later (GPL-2.0-or-later).
 
-Copyright (c) 2026 William Kimball, Jr., MBA, MSIS
+Copyright (c) 2026 William W. Kimball, Jr., MBA, MSIS
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
 warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the LICENSE file for full details.
