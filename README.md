@@ -73,9 +73,10 @@ steps:
    Review the output files (`docker/*.env*`) to learn what values were generated for you.  These files are named for the
    service and deployment stage their values apply to.
 3. Build and start the Docker Compose stack:  `./build.sh --start`.
-4. Experiment with the RESTful API per the documentation below.  Test data will have been loaded already, which you can
-   use to authenticate and otherwise explore any of several test user accounts.  The test data accounts [are documented
-   with the seed data](test-data/seeds/README.md).
+4. Experiment with the RESTful API per the documentation below.  It will be accessible at `localhost` port `8080` unless
+   you modify the Docker Compose YAML to change the port.  Test data will have been loaded already, which you can use to
+   authenticate and otherwise explore any of several test user accounts.  The test data accounts [are documented with
+   the seed data](test-data/seeds/README.md).
 
 Do not publish these example Docker containers.  These are provided only for you to learn from in order to design and
 deploy your own private implementation of this PostfixMe API.
