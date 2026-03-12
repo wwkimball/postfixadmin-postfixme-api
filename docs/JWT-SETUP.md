@@ -1,16 +1,28 @@
 # JWT (JSON Web Tokens) Configuration
 
+This PostfixMe RESTful API for PostfixAdmin extends the PostfixAdmin authentication system to add JSON Web Token.  This
+enables a remote device to securely maintain a long-lived login session.  As such, mobile devices can resume (refresh)
+login sessions when the mobile app is rarely used.
+
+This document explores what JWTs are so that administrators considering PostfixMe can get a clear understanding of how
+this API protects their PostfixAdmin installation while still enabling mobile app access.
+
+In order to use the PostfixMe API, you must configure and use JWT.  Configuration is as simple as generating a
+crypographic key pair (private and public) and adding them to either the default location or telling PostfixMe where to
+find your key pair files.  Continue reading for step-by-step instructions.
+
 ## What is JWT?
 
-JWT (JSON Web Tokens) is a compact, URL-safe method for representing claims (pieces of information) between two parties. In this project, it's used as a **stateless authentication mechanism** for the PostfixMe API.
+JWT (JSON Web Tokens) is a compact, URL-safe method for representing claims (pieces of information) between two parties.
+In this project, it's used as a **stateless authentication mechanism** for the PostfixMe API.
 
 ### How JWT Works
 
 A JWT consists of three parts separated by dots (`.`):
 
-1. **Header**: Contains metadata about the token (type: "JWT", algorithm used: "RS256")
-2. **Payload**: Contains the claims (user ID, roles, expiration time, etc.)
-3. **Signature**: Cryptographic signature proving the token hasn't been tampered with
+1. **Header**:  Contains metadata about the token (type: "JWT", algorithm used: "RS256")
+2. **Payload**:  Contains the claims (user ID, roles, expiration time, etc.)
+3. **Signature**:  Cryptographic signature proving the token hasn't been tampered with
 
 Example JWT:
 
@@ -22,17 +34,19 @@ eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0Ijo
 
 ### In the PostfixMe API Context
 
-1. **Stateless Authentication**: The server doesn't need to store session information. Each token is self-contained and verifiable.
+1. **Stateless Authentication**:  The server doesn't need to store session information.  Each token is self-contained
+   and verifiable.
 
-2. **Mobile-Friendly**: Mobile apps (like PostfixMe iOS) can securely store and send tokens without complex session management.
+2. **Mobile-Friendly**:  Mobile apps (like PostfixMe iOS) can securely store and send tokens without complex session
+   management.
 
-3. **Secure Communication**: RS256 (RSA with SHA-256) uses public/private key cryptography:
+3. **Secure Communication**:  RS256 (RSA with SHA-256) uses public/private key cryptography:
    - The **private key** signs tokens (only the server has this)
    - The **public key** verifies tokens (clients can verify without the private key)
 
 4. **Token Types**:
-   - **Access Tokens**: Short-lived (15 minutes default) - used for API requests
-   - **Refresh Tokens**: Long-lived (5 years default) - used to obtain new access tokens when they expire
+   - **Access Tokens**:  Short-lived (15 minutes default) - used for API requests
+   - **Refresh Tokens**:  Long-lived (5 years default) - used to obtain new access tokens when they expire
 
 5. **Security Benefits**:
    - Prevents token tampering (invalid signature = rejected token)
@@ -43,16 +57,16 @@ eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0Ijo
 
 RS256 (RSA Signature with SHA-256) uses asymmetric cryptography:
 
-- **RSA**: Public-key cryptography algorithm based on mathematical properties of large prime numbers
-- **SHA-256**: Secure Hash Algorithm producing a 256-bit fingerprint of the data
-- **Why RSA?** Different parties can verify the signature using only the public key, without access to the private key
+- **RSA**:  Public-key cryptography algorithm based on mathematical properties of large prime numbers
+- **SHA-256**:  Secure Hash Algorithm producing a 256-bit fingerprint of the data
+- **Why RSA?**:  Different parties can verify the signature using only the public key, without access to the private key
 
 ## Generating JWT Secret Files
 
 The PostfixMe API requires two files for JWT token signing and verification:
 
-- **Private Key File** - Used by the server to **sign** tokens
-- **Public Key File** - Used by clients and the server to **verify** tokens
+- **Private Key File**:  Used by the server to **sign** tokens
+- **Public Key File**:  Used by clients and the server to **verify** tokens
 
 ### Quick Generation (Recommended)
 
@@ -73,19 +87,19 @@ chmod 644 pfme_jwt_public_key.txt
 ### What Each Command Does
 
 1. **`openssl genrsa -out pfme_jwt_private_key.txt 2048`**
-   - `openssl genrsa`: Generate RSA private key
-   - `2048`: Key size in bits (widely compatible; use 4096 if you prefer stronger keys)
-   - `-out`: Output file location
+   - `openssl genrsa`:  Generate RSA private key
+   - `2048`:  Key size in bits (widely compatible; use 4096 if you prefer stronger keys)
+   - `-out`:  Output file location
 
 2. **`openssl rsa -in pfme_jwt_private_key.txt -pubout -out pfme_jwt_public_key.txt`**
-   - `openssl rsa`: RSA key operations
-   - `-in`: Input private key file
-   - `-pubout`: Extract and output the public key portion
-   - `-out`: Output file location
+   - `openssl rsa`:  RSA key operations
+   - `-in`:  Input private key file
+   - `-pubout`:  Extract and output the public key portion
+   - `-out`:  Output file location
 
 3. **`chmod` commands**: Set appropriate file permissions
-   - Private key: `600` (read/write for owner only)
-   - Public key: `644` (readable by everyone, writable only by owner)
+   - Private key:  `600` (read/write for owner only)
+   - Public key:  `644` (readable by everyone, writable only by owner)
 
 ### Verifying Generation
 
@@ -149,7 +163,7 @@ If your private key is compromised:
 
 ### Deployment Recommendations
 
-**Development**: Keys in local repository (acceptable for local testing only)
+**Development**:  Keys in local repository (acceptable for local testing only)
 
 **Staging/Production**:
 
@@ -159,7 +173,7 @@ If your private key is compromised:
    - Docker secrets
    - Environment variables
    - Secrets management system (recommended)
-4. Rotate keys periodically (every 6-12 months)
+4. Rotate keys periodically (per your own security policy)
 
 ## Troubleshooting
 
@@ -167,7 +181,7 @@ If your private key is compromised:
 
 This error occurs during Docker Compose configuration when the secret files don't exist.
 
-**Solution**: Generate the keys using the quick generation commands above.
+**Solution**:  Generate the keys using the quick generation commands above.
 
 ### Permission Denied When Reading Keys
 
@@ -199,11 +213,11 @@ The keys should persist because they're mounted from the host filesystem. If the
 
 ## Token Lifecycle in PostfixMe
 
-1. **Login**: User provides mailbox and password to PostfixMe iOS app
-2. **Token Issuance**: API validates credentials, generates access token + refresh token
-3. **API Requests**: iOS app includes access token in API request headers
-4. **Token Verification**: API verifies token signature using public key
-5. **Token Expiration**: When access token expires (15 minutes), iOS app uses refresh token to get new one
-6. **Logout**: iOS app discards tokens; tokens become worthless if already expired
+1. **Login**:  User provides mailbox and password to PostfixMe iOS app
+2. **Token Issuance**:  API validates credentials, generates access token + refresh token
+3. **API Requests**:  iOS app includes access token in API request headers
+4. **Token Verification**:  API verifies token signature using public key
+5. **Token Expiration**:  When access token expires (15 minutes), iOS app uses refresh token to get new one
+6. **Logout**:  iOS app discards tokens; tokens become worthless if already expired
 
 This flow keeps communication stateless and secure without requiring the server to maintain session databases.

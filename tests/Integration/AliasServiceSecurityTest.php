@@ -38,6 +38,17 @@ class AliasServiceSecurityTest extends TestCase
     {
         $this->aliasService = new AliasService();
         $this->db = Database::getConnection();
+
+        if (!$this->db->inTransaction()) {
+            $this->db->beginTransaction();
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->db->inTransaction()) {
+            $this->db->rollBack();
+        }
     }
 
     /**
@@ -283,6 +294,8 @@ class AliasServiceSecurityTest extends TestCase
             );
 
             if (isset($alias['address'])) {
+                $this->assertIsString($alias['address'], 'Created alias should have a string address');
+
                 // Try to update with malicious data
                 $maliciousUpdates = [
                     ['local_part' => "evil'; DROP TABLE alias; --"],
@@ -302,8 +315,13 @@ class AliasServiceSecurityTest extends TestCase
                     }
                 }
 
+                // Verify the alias table still exists after all injection attempts
+                $stmt = $this->db->query('SELECT 1 FROM alias LIMIT 1');
+                $this->assertNotFalse($stmt, 'Alias table should still exist after injection attempts');
+
                 // Clean up
-                $this->aliasService->deleteAlias($alias['address'], $this->testMailbox);
+                $deleted = $this->aliasService->deleteAlias($alias['address'], $this->testMailbox);
+                $this->assertTrue($deleted !== false, 'Should be able to delete the test alias');
             }
         } catch (\Exception $e) {
             // Test setup may fail in some environments

@@ -1,0 +1,60 @@
+# Per-Dockerfile ignore rules for docker/pfme-php-api/Dockerfile.
+# Requires BuildKit (default since Docker 23.0).  BuildKit resolves this file
+# as <context-root>/docker/pfme-php-api/Dockerfile.dockerignore where
+# <context-root> is pfme/api/, so it applies exclusively to this Dockerfile
+# and does not affect other images built from the same context root.
+
+# ── Build-time-only scripts ──────────────────────────────────────────────────
+
+build.sh
+build-pre.sh
+build-post.sh
+build-restore.sh
+compose.sh
+process-templates.sh
+run-tests.sh
+start.sh
+stop.sh
+template-variables.txt
+
+# ── Project metadata and documentation ──────────────────────────────────────
+
+README.md
+phpunit.xml
+pfme-api-phpunit.log
+.transient-build-marker
+.git
+.gitignore
+.gitmodules
+
+# ── Tests and non-runtime directories ───────────────────────────────────────
+
+tests/
+docs/
+vendor/
+# test-data/ is intentionally NOT excluded — the with-seeds stage copies from it.
+
+# ── docker/ directory ────────────────────────────────────────────────────────
+# Only docker/pfme-php-api/ (config + entrypoint) is needed.
+# Secrets and env files must never enter any build context.
+
+docker/.env*
+docker/docker-compose*.yaml
+docker/images/
+docker/pfme-php-api-tests/
+docker/reverse_proxy/
+docker/scripts/
+docker/secrets/
+
+# ── lib submodule: exclude non-runtime content ───────────────────────────────
+
+lib/.git
+lib/docker/compose-build.sh
+lib/docker/compose-command.sh
+lib/docker/compose-deploy.sh
+lib/docker/compose-start.sh
+lib/docker/compose-stop.sh
+lib/docker/jenkins
+lib/docker/scripts
+lib/ssh/reset-scm-host-keys.sh
+lib/ssh/restart-remote-compose-services.sh

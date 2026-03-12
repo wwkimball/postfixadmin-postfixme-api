@@ -7,8 +7,7 @@
          failOnWarning="true"
          failOnRisky="true"
          failOnEmptyTestSuite="true"
-         beStrictAboutOutputDuringTests="true"
-         beStrictAboutTodoAnnotatedTests="true">
+         beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
@@ -17,9 +16,12 @@
             <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
-    <coverage processUncoveredFiles="true">
-        <include>
-            <directory suffix=".php">src</directory>
-        </include>
+    <coverage>
+        <!-- Add valid coverage configuration here if needed -->
     </coverage>
+    <php>
+        <ini name="error_reporting" value="E_ALL"/>
+        <ini name="display_errors" value="On" />
+        <ini name="display_startup_errors" value="On" />
+    </php>
 </phpunit>

@@ -1,0 +1,143 @@
+name: postfixadmin-postfixme
+
+services:
+  postfixadmin:
+    image: postfixadmin:3-fpm-alpine
+    restart: unless-stopped
+    secrets:
+      - mysql_root_password
+      - postfixadmin_db_user
+      - postfixadmin_db_password
+    env_file:
+      - .env.postfixadmin
+    environment:
+      POSTFIXADMIN_DB_USER_FILE: /run/secrets/postfixadmin_db_user
+      POSTFIXADMIN_DB_PASSWORD_FILE: /run/secrets/postfixadmin_db_password
+    volumes:
+      # The NGINX container must have a full duplicate copy of all of the web
+      # application's files in order to know which files exist and thereby which
+      # URLs to pass through to the PHP-FPM container.  We use a bind mount to
+      # let the PHP-FPM container "publish" its files for the NGINX container to
+      # see for this purpose.  Their content will still be processed by the
+      # PHP-FPM container.
+      - postfixadmin-src:/var/www/html:rw
+    expose:
+      - 9000
+    networks:
+      - postfixadmin-private
+    healthcheck:
+      test: ["CMD", "pgrep", "php-fpm"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  pfme-api:
+    image: pfme-api:${VERSION:-latest}
+    build:
+      context: ../
+      dockerfile: ./docker/pfme-php-api/Dockerfile
+      args:
+        DEPLOYMENT_STAGE: ${DEPLOYMENT_STAGE:-production}
+    restart: unless-stopped
+    secrets:
+      - mysql_root_password
+      - postfixadmin_db_user
+      - postfixadmin_db_password
+      - pfme_jwt_private_key
+      - pfme_jwt_public_key
+    env_file:
+      - .env.postfixadmin
+      - .env.pfme-api
+    environment:
+      DEPLOYMENT_STAGE: ${DEPLOYMENT_STAGE:-production}
+      POSTFIXADMIN_DB_USER_FILE: /run/secrets/postfixadmin_db_user
+      POSTFIXADMIN_DB_PASSWORD_FILE: /run/secrets/postfixadmin_db_password
+      PFME_JWT_PRIVATE_KEY_FILE: /run/secrets/pfme_jwt_private_key
+      PFME_JWT_PUBLIC_KEY_FILE: /run/secrets/pfme_jwt_public_key
+      POSTFIXADMIN_SOURCE_PATH: /usr/src/postfixadmin
+    volumes:
+      - postfixadmin-src:/usr/src/postfixadmin:ro
+    expose:
+      - 80
+    networks:
+      - postfixadmin-private
+    depends_on:
+      postfixadmin:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  reverse_proxy:
+    image: nginx:stable-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      # Configure NGINX to reverse proxy the PostfixAdmin web application via
+      # PHP-FPM.
+      - ./reverse_proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./reverse_proxy/conf.d:/etc/nginx/conf.d:ro
+
+      # The NGINX container must have a full duplicate copy of all of the web
+      # application's files in order to know which files exist and thereby which
+      # URLs to pass through to the PHP-FPM container.  We use a bind mount to
+      # let the PHP-FPM container "publish" its files for the NGINX container to
+      # see for this purpose.  Their content will still be processed by the
+      # PostfixAdmin PHP-FPM container.
+      - postfixadmin-src:/var/www/html:ro
+
+      # PostfixMe runs in its own separate container -- apart from PostfixAdmin
+      # -- and is thus reverse proxied directly (not using PHP-FPM at this
+      # time).
+    networks:
+      - intranet
+      - postfixadmin-private
+    depends_on:
+      postfixadmin:
+        condition: service_healthy
+      pfme-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  postfixadmin_db_user:
+    file: ./secrets/postfixadmin_db_user.txt
+  postfixadmin_db_password:
+    file: ./secrets/postfixadmin_db_password.txt
+  pfme_jwt_private_key:
+    file: ./secrets/pfme_jwt_private_key.txt
+  pfme_jwt_public_key:
+    file: ./secrets/pfme_jwt_public_key.txt
+
+volumes:
+  postfixadmin-src: {}
+
+networks:
+  intranet:
+    name: postfixadmin-intranet
+    driver: bridge
+  postfixadmin-private:
+    name: postfixadmin-private
+    driver: bridge
+    internal: true

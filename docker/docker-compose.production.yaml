@@ -1,0 +1,48 @@
+# Production compose intentionally omits an embedded database. In production
+# the database MUST be provided and managed externally (RDS, managed MariaDB,
+# Kubernetes-managed stateful set, etc.).  Provide connection details via
+# environment variables or Docker secrets when deploying.
+
+services:
+  postfixadmin:
+    restart: always
+    env_file:
+      - .env.production
+      - .env.postfixadmin.production
+    volumes:
+      - postfixadmin-src:/var/www/html:ro
+    networks:
+      - database-link
+
+  pfme-api:
+    env_file:
+      - .env.production
+      - .env.postfixadmin.production
+      - .env.pfme-api.production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "X-Forwarded-Proto: https", "http://localhost/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - database-link
+    profiles:
+      - production
+
+  reverse_proxy:
+    restart: always
+    env_file:
+      - .env.reverse_proxy.production
+    profiles:
+      - production
+    depends_on:
+      pfme-api:
+        condition: service_healthy
+      postfixadmin:
+        condition: service_healthy
+
+networks:
+  database-link:
+    driver: bridge
+    external: true  # This should be managed by an external process
+    name: ${DATABASE_NETWORK_NAME:-production-database-link}

@@ -1,0 +1,104 @@
+# Global ARG for deployment stage selection (must be before any FROM)
+ARG DEPLOYMENT_STAGE=production
+
+FROM php:8.2-apache AS base
+
+LABEL description="Example PostfixMe PHP API"
+LABEL version="0.1.0"
+
+# Build arguments
+ARG DEPLOYMENT_STAGE=production
+
+# Environment variables
+ENV DEPLOYMENT_STAGE=${DEPLOYMENT_STAGE}
+ENV MYSQL_HOST=database
+ENV MYSQL_PORT=3306
+ENV MYSQL_DATABASE=
+ENV MYSQL_USER=root
+ENV POSTFIXADMIN_DB_NAME=email
+ENV DBSCHEMA_SETTINGS_TABLE=dbschema_settings
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+        bash \
+        mariadb-client \
+        dovecot-core \
+        unzip \
+        libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the database schema and shell script helper library into the container
+WORKDIR /opt/dbutils
+COPY ./schema schema
+COPY ./lib lib
+
+# Enable Apache modules
+RUN a2enmod rewrite headers env
+
+# Configure Apache to pass headers to PHP (Authorization, X-Forwarded-Proto, etc.)
+# This is critical for TLS middleware and proxy headers to work correctly
+COPY ./docker/pfme-php-api/config/php-headers.conf /etc/apache2/conf-available/php-headers.conf
+RUN a2enconf php-headers
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Copy only the runtime-needed application files (excludes tests, test-data,
+# docker config, build scripts, docs, vendor, and other non-runtime content).
+# Each directory is copied individually to preserve the required subdirectory
+# structure under /var/www/pfme-api/ (multi-source COPY merges contents flat).
+COPY ./config /var/www/pfme-api/config
+COPY ./src /var/www/pfme-api/src
+COPY ./public /var/www/pfme-api/public
+COPY ./composer.json ./composer.lock /var/www/pfme-api/
+
+# Install PHP dependencies with Composer
+WORKDIR /var/www/pfme-api
+RUN composer install --no-dev --optimize-autoloader --no-interaction 2>&1
+
+# Configure Apache DocumentRoot to public/
+ENV APACHE_DOCUMENT_ROOT=/var/www/pfme-api/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+# Set ownership so Apache can serve files
+RUN chown -R www-data:www-data /var/www/pfme-api
+
+# Intermediate stage for seeded environments - includes test seed data
+FROM base AS with-seeds
+# Copy processed SQL files only (not template files)
+# Note: This requires that build-pre.sh has already processed templates
+COPY test-data/seeds/*.sql /opt/dbutils/test-data/
+COPY test-data/scripts/ /usr/local/bin/
+RUN chmod +x /usr/local/bin/*.sh
+
+# Development stage - inherits test seed data
+FROM with-seeds AS development
+
+# Lab stage - inherits test seed data
+FROM with-seeds AS lab
+
+# QA stage - inherits test seed data
+FROM with-seeds AS qa
+
+# Staging stage - no test seed data
+FROM base AS staging
+
+# Production stage - no test seed data
+FROM base AS production
+
+# Final stage selection based on DEPLOYMENT_STAGE build arg
+FROM ${DEPLOYMENT_STAGE} AS final
+
+# Entrypoint
+COPY ./docker/pfme-php-api/scripts/pfme-entrypoint.sh /usr/local/bin/pfme-entrypoint.sh
+RUN chmod +x /usr/local/bin/pfme-entrypoint.sh
+
+EXPOSE 80
+
+ENTRYPOINT ["/usr/local/bin/pfme-entrypoint.sh"]
+CMD ["apache2-foreground"]
