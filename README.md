@@ -46,10 +46,23 @@ off of your mail server administrator(s).
 
 ## Requirements
 
-- PHP 8.1 or higher
-- PostfixAdmin database (PostgreSQL, MySQL/MariaDB, or SQLite)
-- OpenSSL extension
-- PDO extension
+If you use Docker with Docker Compose, that's all you need.  This project is
+tuned for container-based deployments along with PostfixAdmin's official Docker
+image.  A [minimally viable Docker Compose stack](docker/README.md) is provided
+as an example for how to stand up the PostfixMe API alongside PostfixAdmin.
+This is the only supported deployment method.
+
+If however, you'd rather do this your own way on a bare metal server or virtual
+machine, you'll need at least:
+
+- PHP 8.1 or higher to run the API
+- A running PostfixAdmin database (PostgreSQL, MySQL/MariaDB, or SQLite)
+- PDO extension for PHP so that the API can talk to the PostfixAdmin database
+- OpenSSL extension for generating the mandatory JWT keys
+- A reverse proxy and valid TLS certificates to handle HTTPS; the API will *not*
+  handle TLS termination for you but it will check for and require TLS
+
+This is not supported but with sufficient skill, you can probably get it to work.
 
 ## Installation
 
