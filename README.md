@@ -48,9 +48,9 @@ off of your mail server administrator(s).
 
 If you use Docker with Docker Compose, that's all you need.  This project is
 tuned for container-based deployments along with PostfixAdmin's official Docker
-image.  A [minimally viable Docker Compose stack](docker/README.md) is provided
-as an example for how to stand up the PostfixMe API alongside PostfixAdmin.
-This is the only supported deployment method.
+image.  A [minimally viable Docker Compose stack](docker/) is provided as an
+example for how to stand up the PostfixMe API alongside PostfixAdmin.  This is
+the only supported deployment method.
 
 If however, you'd rather do this your own way on a bare metal server or virtual
 machine, you'll need at least:
