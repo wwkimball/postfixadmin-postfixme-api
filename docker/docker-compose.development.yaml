@@ -41,9 +41,7 @@ services:
   pfme-api:
     build:
       args:
-        DEPLOYMENT_STAGE: development
-    environment:
-      DEPLOYMENT_STAGE: development
+        DOCKER_BUILD_STAGE: development
     env_file:
       - .env.development
       - .env.postfixadmin.development

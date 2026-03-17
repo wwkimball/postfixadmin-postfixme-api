@@ -41,9 +41,7 @@ services:
   pfme-api:
     build:
       args:
-        DEPLOYMENT_STAGE: qa
-    environment:
-      DEPLOYMENT_STAGE: qa
+        DOCKER_BUILD_STAGE: qa
     env_file:
       - .env.qa
       - .env.postfixadmin.qa

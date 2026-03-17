@@ -41,7 +41,7 @@ services:
       context: ../
       dockerfile: ./docker/pfme-php-api/Dockerfile
       args:
-        DEPLOYMENT_STAGE: ${DEPLOYMENT_STAGE:-production}
+        DOCKER_BUILD_STAGE: ${DOCKER_BUILD_STAGE:-production}
     restart: unless-stopped
     secrets:
       - mysql_root_password
@@ -53,7 +53,6 @@ services:
       - .env.postfixadmin
       - .env.pfme-api
     environment:
-      DEPLOYMENT_STAGE: ${DEPLOYMENT_STAGE:-production}
       POSTFIXADMIN_DB_USER_FILE: /run/secrets/postfixadmin_db_user
       POSTFIXADMIN_DB_PASSWORD_FILE: /run/secrets/postfixadmin_db_password
       PFME_JWT_PRIVATE_KEY_FILE: /run/secrets/pfme_jwt_private_key

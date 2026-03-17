@@ -1,16 +1,14 @@
-# Global ARG for deployment stage selection (must be before any FROM)
-ARG DEPLOYMENT_STAGE=production
+# Global ARG for deployment stage (must be before any FROM)
+ARG DOCKER_BUILD_STAGE=production
 
 FROM php:8.2-apache AS base
 
 LABEL description="Example PostfixMe PHP API"
 LABEL version="0.1.0"
 
-# Build arguments
-ARG DEPLOYMENT_STAGE=production
-
 # Environment variables
-ENV DEPLOYMENT_STAGE=${DEPLOYMENT_STAGE}
+ARG DOCKER_BUILD_STAGE=production
+ENV DEPLOYMENT_STAGE=${DOCKER_BUILD_STAGE}
 ENV MYSQL_HOST=database
 ENV MYSQL_PORT=3306
 ENV MYSQL_DATABASE=
@@ -91,8 +89,8 @@ FROM base AS staging
 # Production stage - no test seed data
 FROM base AS production
 
-# Final stage selection based on DEPLOYMENT_STAGE build arg
-FROM ${DEPLOYMENT_STAGE} AS final
+# Final stage selection based on DOCKER_BUILD_STAGE build arg (must be lowercase)
+FROM ${DOCKER_BUILD_STAGE} AS final
 
 # Entrypoint
 COPY ./docker/pfme-php-api/scripts/pfme-entrypoint.sh /usr/local/bin/pfme-entrypoint.sh
