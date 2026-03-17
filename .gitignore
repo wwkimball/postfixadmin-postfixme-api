@@ -64,9 +64,6 @@ docker/secrets/pfme_jwt_public_key
 # PHP vendor directory
 vendor/
 
-# PHP Composer lock
-composer.lock
-
 # PHPUnit coverage
 .phpunit.cache/
 .phpunit.result.cache
