@@ -8,5 +8,5 @@
 -- specific devices.  However, this feature was never fully implemented due to
 -- possible conflict with privacy concerns, and so was never actually used.  It
 -- has been removed from both the iOS app and the API.
-ALTER TABLE pfme_refresh_tokens DROP INDEX idx_device;
-ALTER TABLE pfme_refresh_tokens DROP COLUMN device_id;
+ALTER TABLE pfme_refresh_tokens DROP INDEX IF EXISTS idx_device;
+ALTER TABLE pfme_refresh_tokens DROP COLUMN IF EXISTS device_id;
