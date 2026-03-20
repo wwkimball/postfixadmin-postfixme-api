@@ -17,7 +17,7 @@
 set -euo pipefail
 
 # Paths as they exist in the container (see Dockerfile)
-SEED_DIR="/opt/postfixadmin/seeds"
+SEED_DIR="/opt/dbutils/test-data"
 SCHEMA_MANAGER="/opt/dbutils/lib/database/schema/mysql.sh"
 
 # Database connection parameters (from environment variables set by Docker Compose)
