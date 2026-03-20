@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 ################################################################################
-# Reload all test seed data
+# Purge from and reload all test seed data into the database
 #
-# This script reruns all seed SQL files using the mysql.sh schema manager.
-# It should be run after purge-test-data.sh to restore the test environment
-# to a known state with fresh seed data.
+# This script removes all data related to the test domains (acme.local and
+# zenith.local), resets the seed version tracker, and then reloads the test seed
+# data. This allows QA testers and demonstrators to completely reset the test
+# environment to a known ready state.
 #
 # Usage (from host):
-#   ./compose.sh exec postfixadmin reload-test-data.sh
+#   ./compose.sh exec pfme-api reload-test-data.sh
 #
 # Usage (inside container):
 #   /usr/local/bin/reload-test-data.sh
@@ -17,55 +18,40 @@
 set -euo pipefail
 
 # Paths as they exist in the container (see Dockerfile)
-SEED_DIR="/opt/postfixadmin/seeds"
-SCHEMA_MANAGER="/opt/dbutils/lib/database/schema/mysql.sh"
-
-# Database connection parameters (from environment variables set by Docker Compose)
-DB_HOST="${POSTFIXADMIN_DB_HOST:-database}"
-DB_PORT="${POSTFIXADMIN_DB_PORT:-3306}"
-DB_NAME="${POSTFIXADMIN_DB_NAME:-email}"
+SCRIPT_DIR="/usr/local/bin"
+PURGE_SCRIPT="${SCRIPT_DIR}/purge-test-data.sh"
+LOAD_SCRIPT="${SCRIPT_DIR}/load-test-data.sh"
 
 echo "Reloading test seed data..."
 echo ""
 
-# Verify the schema manager exists
-if [[ ! -f "${SCHEMA_MANAGER}" ]]; then
-    echo "Error: Schema manager not found at ${SCHEMA_MANAGER}"
-    exit 1
+# Verify the purge script exists
+if [[ ! -f "${PURGE_SCRIPT}" ]]; then
+	echo "Error: Purge script not found at ${PURGE_SCRIPT}" >&2
+	exit 2
 fi
 
-# Verify seed directory exists
-if [[ ! -d "${SEED_DIR}" ]]; then
-    echo "Error: Seed directory not found at ${SEED_DIR}"
-    exit 1
+# Verify the load script exists
+if [[ ! -f "${LOAD_SCRIPT}" ]]; then
+	echo "Error: Load script not found at ${LOAD_SCRIPT}" >&2
+	exit 2
 fi
 
-# Verify password secret exists
-if [[ ! -f /run/secrets/mysql_root_password ]]; then
-    echo "Error: Database password secret not found at /run/secrets/mysql_root_password"
-    exit 1
-fi
-
-# Run the schema manager to apply all seed files
-# This uses the same approach as the entrypoint.sh script
-"${SCHEMA_MANAGER}" \
-	--stage production \
-	--db-host "${DB_HOST}" \
-	--db-port "${DB_PORT}" \
-	--db-user root \
-	--password-file /run/secrets/mysql_root_password \
-	--default-db-name "${DB_NAME}" \
-	--settings-table dbschema_settings \
-	--version-key seed_version \
-	--ddl-directory "${SEED_DIR}" \
-	--ddl-extension sql
-
+# Run the purge script to clear existing test data
+echo "Purging existing test data..."
+"${PURGE_SCRIPT}"
 if [ 0 -ne $? ]; then
-    echo "Error: Test seed data application failed"
-    exit 1
+	echo "Error: Failed to purge test data" >&2
+	exit 3
+fi
+
+# Run the load script to apply all seed files
+echo "Loading fresh test seed data..."
+"${LOAD_SCRIPT}"
+if [ 0 -ne $? ]; then
+	echo "Error: Failed to load test data" >&2
+	exit 4
 fi
 
 echo ""
-echo "Test seed data reloaded successfully"
-echo "  - All seed files have been applied"
-echo "  - Seed version tracker updated"
+echo "Test seed data reloaded successfully. The test environment is now reset to a known state with fresh seed data."

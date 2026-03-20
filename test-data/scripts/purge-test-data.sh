@@ -7,7 +7,7 @@
 # to completely reset the test environment to a clean state.
 #
 # Usage (from host):
-#   ./compose.sh exec postfixadmin purge-test-data.sh
+#   ./compose.sh exec pfme-api purge-test-data.sh
 #
 # Usage (inside container):
 #   /usr/local/bin/purge-test-data.sh
