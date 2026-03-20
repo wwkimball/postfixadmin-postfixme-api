@@ -70,13 +70,30 @@ if [ -d "${INSTALL_DIRECTORY}/test-data/" ]; then
 	fi
 
 	MYSQL_ROOT_PASSWORD="$(cat /run/secrets/mysql_root_password)"
+	sentryLimit=60
+	sentryCount=0
+	sentryLogInterval=3
 	while ! ${MYSQL_CLIENT} -h "${POSTFIXADMIN_DB_HOST}" \
 		-P "${POSTFIXADMIN_DB_PORT}" \
 		-u root \
 		-p"${MYSQL_ROOT_PASSWORD}" \
 		"${POSTFIXADMIN_DB_NAME}" \
-		-e "SELECT 1 FROM admin LIMIT 1" >/dev/null 2>&1; do
+		-e "SELECT 1 FROM admin LIMIT 1" >/dev/null 2>&1
+	do
 		sleep 1
+
+		# Bail out if we've been waiting too long, to avoid an infinite loop in
+		# case of a problem.
+		sentryCount=$((sentryCount + 1))
+		if [ $sentryCount -ge $sentryLimit ]; then
+			errorOut 1 "PostfixAdmin database tables did not become ready in time."
+		fi
+
+		# Log a message every N seconds to indicate that we're still waiting,
+		# to help with troubleshooting if something goes wrong.
+		if [ $((sentryCount % sentryLogInterval)) -eq 0 ]; then
+			logInfo "Waiting ${sentryLogInterval} more seconds for the PostfixAdmin database tables to become ready..."
+		fi
 	done
 	logInfo "PostfixAdmin database tables are ready."
 
