@@ -10,7 +10,7 @@ services:
       - .env.production
       - .env.postfixadmin.production
     volumes:
-      - postfixadmin-src:/var/www/html:ro
+      - postfixadmin-src-v4:/var/www/html:ro
     networks:
       - database-link
 

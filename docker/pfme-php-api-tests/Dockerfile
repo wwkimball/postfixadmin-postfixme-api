@@ -1,4 +1,4 @@
-FROM php:8.2-cli
+FROM php:8.4-cli
 
 LABEL description="PostfixMe PHP API Unit Test Runner"
 LABEL version="1.0.0"

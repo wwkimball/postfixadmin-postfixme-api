@@ -112,9 +112,16 @@ class AuthService
         }
 
         $sourcePath = rtrim($this->config['postfixadmin']['source_path'] ?? '/usr/src/postfixadmin', '/');
+        $autoload = $sourcePath . '/vendor/autoload.php';
         $configDefault = $sourcePath . '/config.inc.php';
         $configLocal = $sourcePath . '/config.local.php';
         $functions = $sourcePath . '/functions.inc.php';
+
+        if (!is_file($autoload)) {
+            throw new \RuntimeException("PostfixAdmin autoloader not found at: {$autoload}");
+        }
+
+        require_once $autoload;
 
         if (is_file($configDefault)) {
             require_once $configDefault;

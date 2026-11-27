@@ -308,7 +308,7 @@ class AliasService
         return 'ASC';
     }
 
-    public function getAvailableMailboxes(string $domain, string $query = null): array
+    public function getAvailableMailboxes(string $domain, ?string $query = null): array
     {
         $db = Database::getConnection();
 
