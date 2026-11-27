@@ -26,7 +26,7 @@ class DatabaseHelper
     /**
      * Get current timestamp as database-appropriate string
      */
-    public static function now(string $dbType = null): string
+    public static function now(?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -42,7 +42,7 @@ class DatabaseHelper
      *
      * @param int $timestamp Unix timestamp or null for current time
      */
-    public static function formatTimestamp(?int $timestamp = null, string $dbType = null): string
+    public static function formatTimestamp(?int $timestamp = null, ?string $dbType = null): string
     {
         $timestamp = $timestamp ?? time();
         $dbType = $dbType ?? Database::getType();
@@ -60,7 +60,7 @@ class DatabaseHelper
      * Used for rate limiting and lockout checks
      * Returns a WHERE clause condition like: "attempted_at > <time>"
      */
-    public static function subtractSeconds(int $seconds, string $dbType = null): string
+    public static function subtractSeconds(int $seconds, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -76,7 +76,7 @@ class DatabaseHelper
      *
      * Example: WHERE attempted_at > <getSubtractSecondsComparison(300)>
      */
-    public static function timestampAfterSeconds(string $column, int $seconds, string $dbType = null): string
+    public static function timestampAfterSeconds(string $column, int $seconds, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
         $subtractExpr = self::subtractSeconds($seconds, $dbType);
@@ -94,7 +94,7 @@ class DatabaseHelper
      * This version is used when you need parameter binding for safety.
      * The interval seconds should be passed as a separate parameter.
      */
-    public static function timestampAfterSecondsParam(string $column, string $dbType = null): string
+    public static function timestampAfterSecondsParam(string $column, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -108,7 +108,7 @@ class DatabaseHelper
     /**
      * Get SQL for comparing timestamp to NOW()
      */
-    public static function timestampAfterNow(string $column, string $dbType = null): string
+    public static function timestampAfterNow(string $column, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -122,7 +122,7 @@ class DatabaseHelper
     /**
      * Get SQL for comparing timestamp to NOW() with less-than operator
      */
-    public static function timestampBeforeNow(string $column, string $dbType = null): string
+    public static function timestampBeforeNow(string $column, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -136,7 +136,7 @@ class DatabaseHelper
     /**
      * Get SQL for extracting date from timestamp
      */
-    public static function extractDate(string $column, string $dbType = null): string
+    public static function extractDate(string $column, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -150,7 +150,7 @@ class DatabaseHelper
     /**
      * Get SQL for a CASE expression counting based on a condition
      */
-    public static function countWhen(string $condition, string $dbType = null): string
+    public static function countWhen(string $condition, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -164,7 +164,7 @@ class DatabaseHelper
     /**
      * Get SQL for aggregating counts with a WHERE condition
      */
-    public static function sumCase(string $condition, string $dbType = null): string
+    public static function sumCase(string $condition, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -181,7 +181,7 @@ class DatabaseHelper
      * Note: This should be used after INSERT operations to get the auto-generated ID
      * Different databases return this differently.
      */
-    public static function lastInsertId(string $dbType = null): string
+    public static function lastInsertId(?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 
@@ -195,7 +195,7 @@ class DatabaseHelper
     /**
      * Get SQL for IFNULL (NULL coalescing)
      */
-    public static function ifNull(string $column, string $default, string $dbType = null): string
+    public static function ifNull(string $column, string $default, ?string $dbType = null): string
     {
         $dbType = $dbType ?? Database::getType();
 

@@ -2,7 +2,7 @@ name: postfixadmin-postfixme
 
 services:
   postfixadmin:
-    image: postfixadmin:3-fpm-alpine
+    image: postfixadmin:4.0-fpm-alpine
     restart: unless-stopped
     secrets:
       - mysql_root_password
@@ -20,7 +20,7 @@ services:
       # let the PHP-FPM container "publish" its files for the NGINX container to
       # see for this purpose.  Their content will still be processed by the
       # PHP-FPM container.
-      - postfixadmin-src:/var/www/html:rw
+      - postfixadmin-src-v4:/var/www/html:rw
     expose:
       - 9000
     networks:
@@ -59,7 +59,7 @@ services:
       PFME_JWT_PUBLIC_KEY_FILE: /run/secrets/pfme_jwt_public_key
       POSTFIXADMIN_SOURCE_PATH: /usr/src/postfixadmin
     volumes:
-      - postfixadmin-src:/usr/src/postfixadmin:ro
+      - postfixadmin-src-v4:/usr/src/postfixadmin:ro
     expose:
       - 80
     networks:
@@ -78,7 +78,7 @@ services:
         max-file: "3"
 
   reverse_proxy:
-    image: nginx:stable-alpine
+    image: nginx:1.30-alpine
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -94,7 +94,7 @@ services:
       # let the PHP-FPM container "publish" its files for the NGINX container to
       # see for this purpose.  Their content will still be processed by the
       # PostfixAdmin PHP-FPM container.
-      - postfixadmin-src:/var/www/html:ro
+      - postfixadmin-src-v4:/var/www/html:ro
 
       # PostfixMe runs in its own separate container -- apart from PostfixAdmin
       # -- and is thus reverse proxied directly (not using PHP-FPM at this
@@ -130,7 +130,7 @@ secrets:
     file: ./secrets/pfme_jwt_public_key.txt
 
 volumes:
-  postfixadmin-src: {}
+  postfixadmin-src-v4: {}
 
 networks:
   intranet:

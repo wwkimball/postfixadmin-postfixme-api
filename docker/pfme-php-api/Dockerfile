@@ -1,7 +1,7 @@
 # Global ARG for deployment stage (must be before any FROM)
 ARG DOCKER_BUILD_STAGE=production
 
-FROM php:8.2-apache AS base
+FROM php:8.4-apache AS base
 
 LABEL description="Example PostfixMe PHP API"
 LABEL version="0.1.0"
@@ -33,6 +33,8 @@ COPY ./lib lib
 
 # Enable Apache modules
 RUN a2enmod rewrite headers env
+RUN printf '%s\n' 'ServerTokens Prod' 'ServerSignature Off' 'TraceEnable Off' > /etc/apache2/conf-available/security-hardening.conf \
+    && a2enconf security-hardening
 
 # Configure Apache to pass headers to PHP (Authorization, X-Forwarded-Proto, etc.)
 # This is critical for TLS middleware and proxy headers to work correctly
@@ -57,6 +59,7 @@ COPY ./composer.json ./composer.lock /var/www/pfme-api/
 # Install PHP dependencies with Composer
 WORKDIR /var/www/pfme-api
 RUN composer install --no-dev --optimize-autoloader --no-interaction 2>&1
+COPY ./docker/pfme-php-api/config/php-security.ini /usr/local/etc/php/conf.d/99-security.ini
 
 # Configure Apache DocumentRoot to public/
 ENV APACHE_DOCUMENT_ROOT=/var/www/pfme-api/public

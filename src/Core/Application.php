@@ -55,7 +55,7 @@ class Application
         }
     }
 
-    public function getConfig(string $key = null)
+    public function getConfig(?string $key = null)
     {
         if ($key === null) {
             return $this->config;

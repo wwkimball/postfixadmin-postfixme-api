@@ -73,7 +73,7 @@ services:
     networks:
       - postfixadmin-private
     volumes:
-      - postfixadmin-src:/usr/src/postfixadmin:ro
+      - postfixadmin-src-v4:/usr/src/postfixadmin:ro
     secrets:
       - postfixadmin_db_user
       - postfixadmin_db_password
@@ -89,7 +89,7 @@ services:
 
 volumes:
   pfme-api-mysql-qa: {}
-  postfixadmin-src: {}
+  postfixadmin-src-v4: {}
 
 secrets:
   mysql_root_password:
